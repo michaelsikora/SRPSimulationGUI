@@ -5,34 +5,9 @@
 
 %% GUI Fig Loader for dynamic microphone array simulations
 function GUI_srp()
-close all;
+close all; clear all;
 
-%%%% Set Style Attributes
-colors{1} = '71d1f1'; % blue
-colors{2} = '71f1c1'; % mint
-colors{3} = '315171'; % dark blue
-colors{4} = '317151'; % forest green
-colors{5} = 'ffa151'; % orange
-colors{6} = '333333'; % grey
-colors{7} = '0033a0'; % Wildcat Blue
-colors{8} = '2c2a29'; % Wildcat Black
-colors{9} = '1897d4'; % Light Blue
-% colora = colors{1+round((length(colors)-1)*rand(1))}; 
-colora = colors{9};
-css.rgbcolora = hex2dec([colora(1:2); colora(3:4); colora(5:6)]);
-colorb = 'fafafa';
-css.rgbcolorb = hex2dec([colorb(1:2); colorb(3:4); colorb(5:6)]);
-
-css.width = 900; css.height = 600;
-css.size = [css.width css.height css.width css.height];
-
-%%%% SideMenu Styling
-css.sideMenuTop = css.height-10;
-css.textOffset = 4;
-css.itemOffset = 30;
-css.border = 16;
-css.padding = 4;
-css.boxTop = css.sideMenuTop;
+css = genStylesheet();
 
 %%%% Generate GUI figure window
 mainWin = figure('position',[0 0 css.width css.height], 'name', 'SRCP Simulator', 'NumberTitle', 'off');
@@ -48,12 +23,11 @@ objs.axes = axes('Parent',objs.pnl);
 
 
 %%%% Left Hand Side SIDE MENU
-%%%% Boxes for independent variables
+%%%% Box for independent variable setup
 objs.indvarbox.N = 3; % number of objects in box
 objs.indvarbox.label = {'Starting Value','Ending Value','Samples'} ;% text for label
 objs.indvarbox.type  = {'popupmenu','popupmenu','popupmenu'};% types of the objects
 objs.indvarbox.string = {}; % string values for object
-objs.indvarbox.units = {'','','m','deg','cm','','',''};
 objs.indvarbox.select = {{{'1','2','3','4'},...
                 {'2','3','4','5'},...
                 {}},... %% Mics per Platform
@@ -71,41 +45,45 @@ objs.indvarbox.select = {{{'1','2','3','4'},...
                 {'2','4','8'}}}; %% Distance between microphones
 objs.indvarbox.callback = {@noOverlapCheckStart,@noOverlapCheckStop,''};
 
-%%%% BOX 2 Full variables list (Stored seperately)
+%%%% BOX Full variables list (Stored seperately for dynamically displaying a portion)
 objs.varbox.N = 9; % number of objects in box
 objs.varbox.label = {'Mics per Platform','Number of Platforms',...
                      'Distance to Source(m)','Platform Angle',...
-                     'Distance Between Mics','Source Type','Source Locations','Platform Locations','Load Variables'} ;% text for label
+                     'Distance Between Mics','Source Type',...
+                     'Source Locations','Platform Locations',...
+                     'Load Variables'} ;% text for label
 objs.varbox.type  = {'popupmenu','popupmenu','popupmenu',...
-                'popupmenu','popupmenu','popupmenu','popupmenu','popupmenu','pushbutton'};% types of the objects
+                'popupmenu','popupmenu','popupmenu',...
+                'popupmenu','popupmenu','pushbutton'};% types of the objects
 objs.varbox.string = {{'2','3','4','5'},...
                 {'1','2','3','4','5'},...
                 {'0.5m','1m','1.5m','2m','2.5m','3m','3.5m'},...
                 {'0deg','45deg','90deg'},...
                 {'5cm','10cm','17cm','20cm','25cm','30cm'},...
                 {'IMPULSE','MOZART','SINE','WHITE NOISE'},...
-                {'Center','Choose Location'},...
-                {'Equidistant','Choose Locations','Monte Carlo'},...
+                {'Center','Choose Location','Random XY'},...
+                {'Equidistant','Choose Locations','Use Stored Values','Random XY'},...
                 {}}; % string values for object
 objs.varbox.callback = {'','','','','','',@setLocS,'',@loadArray};
+objs.varbox.units = {'','','m','deg','cm','','','',''};
 objs.box{2} = objs.varbox;
 
 which = find(strcmp(objs.varbox.type, 'popupmenu'));
-%%%% BOX 1
+%%%% BOX 1 Select independent variable
 objs.box{1}.N = 1; % number of objects in box
 objs.box{1}.label = {'Independent Variable'} ;% text for label
 objs.box{1}.type  = {'popupmenu'};% types of the objects
 objs.box{1}.string = {{'None',objs.varbox.label{which(1:length(objs.indvarbox.select))}}}; % string values for object
 objs.box{1}.callback = {@indVar};
 
-%%%% BOX 3
+%%%% BOX 3 data output
 objs.box{3}.N = 8;
 objs.box{3}.label = {'DATA','','','','','','',''};
 objs.box{3}.type = {'text','text','text','text','text','text','text','text'};
 objs.box{3}.string = {'','','','','','','',''};
 objs.box{3}.callback = {'','','','','','','',''};
 
-%%%% BOX 4
+%%%% BOX 4 % plot options
 objs.box{4}.N = 3; % number of objects in box
 objs.box{4}.label = {'Plot Type','View','Update Figure'} ;% text for label
 objs.box{4}.type  = {'popupmenu','popupmenu','pushbutton'};% types of the objects
@@ -115,11 +93,11 @@ objs.box{4}.string = {{'SRP image','Platform Orientations','SNR dB'},...
 objs.box{4}.callback = {'','',@loadFig};
 
 %%%% BOX 5
-objs.box{5}.N = 3; % number of objects in box
-objs.box{5}.label = {'Restart GUI','Toggle Fullscreen','About'} ;% text for label
-objs.box{5}.type  = {'pushbutton','pushbutton','pushbutton'};% types of the objects
-objs.box{5}.string = {{},{},{}}; % string values for object
-objs.box{5}.callback = {@restartGUI,@Fullscreen,@dispvars};
+objs.box{5}.N = 4; % number of objects in box
+objs.box{5}.label = {'Restart GUI','Toggle Fullscreen','Export Variables','Import Variables'} ;% text for label
+objs.box{5}.type  = {'pushbutton','pushbutton','pushbutton','pushbutton'};% types of the objects
+objs.box{5}.string = {{},{},{},{}}; % string values for object
+objs.box{5}.callback = {@restartGUI,@Fullscreen,@saveVars,@loadVars};
 
 %%%% BOX 6
 objs.box{6}.N = 2; % number of objects in box
@@ -128,19 +106,27 @@ objs.box{6}.type  = {'pushbutton','pushbutton'};% types of the objects
 objs.box{6}.string = {{},{},{}}; % string values for object
 objs.box{6}.callback = {@editvars,@setupSim};
 
-%%%% BOX 7
+%%%% BOX 7 used to setup independent variable
 objs.box{7}.N = 1;
 
-%%%% BOX 6
+%%%% BOX 8
 objs.box{8}.N = 2; % number of objects in box
 objs.box{8}.label = {'Run Error Analysis','Save Plot'} ;% text for label
 objs.box{8}.type  = {'pushbutton','pushbutton'};% types of the objects
 objs.box{8}.string = {{},{}}; % string values for object
 objs.box{8}.callback = {@errorAnalysis,@saveFig};
 
+objs.box{9}.N = 2;
+objs.box{9}.label = {'Scroll','---'};
+objs.box{9}.type = {'slider','text'};
+objs.box{9}.string = {{'1','3'},{}};
+objs.box{9}.callback = {@expSliderMove,''};
+
 %%%% Define Side menu box labels and tentatively use for ordering in display
-objs.boxTitles = {'indselect','varlist','output','plots','guiopts','srpsim','indvar','aftersrp'};
-objs.active = {'indselect','varlist','guiopts'};
+objs.boxTitles = {'indselect','varlist','output','plots',...
+                'guiopts','srpsim','indvar','aftersrp','scroll'};
+objs.active =  css.sidemenu1;
+
 % Draw Starting side menu
 css.adj = 0;
 css.boxTop = css.sideMenuTop;
@@ -149,17 +135,7 @@ for ss = 1:length(currSideMenuIDs)
 	[css, objs] = loadBox(css,objs,currSideMenuIDs(ss));
 end
 
-%%%% default variables
-vars.independent = 'None';
-vars.sigpos = [0 0 1.5]';
-vars.setup = 'EQUIDISTANT';
-popupmenulist = find(strcmp(objs.varbox.type,'popupmenu'));
-for nn = popupmenulist
-    vars.label{nn} = objs.varbox.label{nn};
-    vars.value{nn} = replace(objs.varbox.string{nn}{1},objs.indvarbox.units{nn},'');
-end
-
-declare; % generates mat file of predefined variables
+declare % generates predefined variables
 
 %%%% Save GUI data for callback use
 myhandles = guihandles(mainWin); 
@@ -170,11 +146,9 @@ myhandles.vars = vars; % Variables for the simulation
 guidata(mainWin,myhandles);
 end
 
-
-
 % Return to editing vars menu
 function editvars(hObject,eventdata)
-myhandles = guidata(gcbo);
+myhandles = guidata(gcf);
 objs = myhandles.objs;
 css = myhandles.css;
 vars = myhandles.vars;
@@ -184,35 +158,36 @@ removeSideMenu(1);
 % Draw Starting side menu
 css.adj = 0;
 css.boxTop = css.sideMenuTop;
-if strcmp(vars.independent,'None')
-    objs.active = {'indselect','varlist','guiopts'};
-else
-    objs.active = {'indselect','indvar','varlist','guiopts'};
-end
+objs.active = css.sidemenu1;
 currSideMenuIDs = getBoxIndexes(objs.boxTitles,objs.active);
 for ss = 1:length(currSideMenuIDs)
 	[css, objs] = loadBox(css,objs,currSideMenuIDs(ss));
 end
 
-val = find(strcmp(objs.box{currSideMenuIDs(1)}.itemhandle{1}.String,vars.independent));
-objs.box{currSideMenuIDs(1)}.itemhandle{1}.Value = val;
+% find boxes by titles and store locally
+indselect = objs.box{strcmp(objs.boxTitles,'indselect')};
+indsetup = objs.box{strcmp(objs.boxTitles,'indvar')};
+varlist = objs.box{strcmp(objs.boxTitles,'varlist')};
+% Reset Independent variable selection
+val = find(strcmp(indselect.itemhandle{1}.String,vars.independent));
+indselect.itemhandle{1}.Value = val;
 if strcmp(vars.independent,'None')
     % var box list
-    popupmenulist = find(strcmp(objs.box{currSideMenuIDs(2)}.type,'popupmenu'));
+    popupmenulist = find(strcmp(varlist.type,'popupmenu'));
     for ii = popupmenulist
-        nn = find(strcmp(vars.label,objs.box{currSideMenuIDs(2)}.label(ii)));
-        units = objs.indvarbox.units{nn};
+        nn = find(strcmp(vars.label,varlist.label(ii)));
+        units = objs.varbox.units{nn};
         val = find(strcmp(objs.varbox.string{nn},[vars.value{nn},units]));
-        objs.box{currSideMenuIDs(2)}.itemhandle{ii}.Value = val;
+        varlist.itemhandle{ii}.Value = val;
     end
 else
     % var box list
-    popupmenulist = find(strcmp(objs.box{currSideMenuIDs(3)}.type,'popupmenu'));
+    popupmenulist = find(strcmp(varlist.type,'popupmenu'));
     for ii = popupmenulist
-        nn = find(strcmp(vars.label,objs.box{currSideMenuIDs(3)}.label(ii)));
-        units = objs.indvarbox.units{nn};
-        val = find(strcmp(objs.varbox.string{nn},[vars.value{nn},units]));
-        objs.box{currSideMenuIDs(3)}.itemhandle{ii}.Value = val;
+        nn = find(strcmp(vars.label,varlist.label(ii)));
+        units = objs.varbox.units{nn};
+        val = find(strcmp(objs.varbox.string{nn},[vars.value{nn}]));
+        varlist.itemhandle{ii}.Value = val;
     end
 end
 
@@ -259,11 +234,17 @@ objs = myhandles.objs;
 css = myhandles.css;
 vars = myhandles.vars;
 
+sigtot = 1;
 if  eventdata.Source.Value == 1
     vars.sigpos = [0 0 1.5]';
 elseif eventdata.Source.Value == 2
     [x,y] = getLocs(vars.fov,vars.sigtot,'Source(s) in FOV');
     vars.sigpos = [x,y,ones(vars.sigtot,1).*1.5]'; 
+elseif eventdata.Source.Value == 3
+	X = rand(sigtot,1)*abs(vars.fov(1,2)-vars.fov(1,1))+vars.fov(1,1);
+    Y = rand(sigtot,1)*abs(vars.fov(2,2)-vars.fov(2,1))+vars.fov(2,1);
+    vars.sigpos = [X,Y,ones(sigtot,1).*1.5]';
+    vars.sigetup = 'RANDOM';
 end
 
 myhandles.vars = vars;
@@ -272,29 +253,66 @@ myhandles.objs = objs;
 guidata(gcf,myhandles);
 end
 
-function setLocP(hObject,eventdata)
+function saveVars(hObject,eventdata)
 myhandles = guidata(gcbo);
 objs = myhandles.objs;
-css = myhandles.css;
 vars = myhandles.vars;
+css = myhandles.css;
+im = myhandles.im;
 
-platnum = str2num(objs.box{2}.itemhandle{2}.String{objs.box{2}.itemhandle{2}.Value});
-if eventdata.Source.Value == 1
-        % Define group of microphone platforms
-        vars.platformGroup = Platform([0 0 1.5],platnum,0.5);
-        [mjs_X, mjs_Y, mjs_Z] = vars.platformGroup.getMics();
-        vars.pcs = [mjs_X, mjs_Y, mjs_Z]; % Center points of arrays
-        vars.setup = 'EQUIDISTANT';
-elseif  eventdata.Source.Value == 2
-    [X,Y] = getLocs(vars.froom,platnum,'Platform Center(s) in FROOM');
-    vars.pcs = [X,Y,ones(platnum,1).*1.5];
-    vars.setup = 'CHOSEN';
+if find(strcmp(objs.active,'varlist'))
+    storVars(hObject,eventdata)
+end
+
+removeSideMenu(1);
+save('variableSave.mat','vars','objs','im');
+% Draw Starting side menu
+css.adj = 0;
+css.boxTop = css.sideMenuTop;
+if strcmp(vars.independent,'None')
+    objs.active = {'indselect','varlist','guiopts'};
+else
+    objs.active = {'indselect','indvar','varlist','guiopts'};
+end
+currSideMenuIDs = getBoxIndexes(objs.boxTitles,objs.active);
+for ss = 1:length(currSideMenuIDs)
+	[css, objs] = loadBox(css,objs,currSideMenuIDs(ss));
+end
+
+myhandles.css = css;
+myhandles.vars = vars;
+myhandles.objs = objs;
+guidata(gcf,myhandles);
+
+editvars(hObject,eventdata);
+end
+
+function loadVars(hObject,eventdata)
+myhandles = guidata(gcbo);
+objs = myhandles.objs;
+vars = myhandles.vars;
+css = myhandles.css;
+
+removeSideMenu(1);
+load('variableSave.mat','vars','objs');
+% Draw Starting side menu
+css.adj = 0;
+css.boxTop = css.sideMenuTop;
+if strcmp(vars.independent,'None')
+    objs.active = {'indselect','varlist','guiopts'};
+else
+    objs.active = {'indselect','indvar','varlist','guiopts'};
+end
+currSideMenuIDs = getBoxIndexes(objs.boxTitles,objs.active);
+for ss = 1:length(currSideMenuIDs)
+	[css, objs] = loadBox(css,objs,currSideMenuIDs(ss));
 end
 
 myhandles.vars = vars;
-myhandles.css = css;
 myhandles.objs = objs;
 guidata(gcf,myhandles);
+
+editvars(hObject,eventdata);
 end
 
 % Finds the indexes of all elements in one cell array in another, assumes
@@ -313,8 +331,22 @@ delete(OrigDlgH);
 GUI_srp;
 end
 
+function expSliderMove(hObject, EventData)
+myhandles = guidata(gcf);
+objs = myhandles.objs;
+vars = myhandles.vars;
+
+EventData.Source.Value = round(EventData.Source.Value);
+% disp(EventData.Source.Value);
+units = objs.varbox.units{vars.ii};
+objs.box{9}.itemhandle{2}.String = [num2str(EventData.Source.Value),units];
+
+myhandles.objs = objs;
+guidata(gcf,myhandles);
+end
+
 function removeSideMenu(insertPos)
-myhandles = guidata(gcbo);
+myhandles = guidata(gcf);
 objs = myhandles.objs;
 currSideMenuIDs = getBoxIndexes(objs.boxTitles,objs.active);
 %%%% delete all side menu boxes after insertPos
@@ -329,6 +361,7 @@ for tt = insertPos:length(currSideMenuIDs)
     end
 end
 %%%%
+myhandles.objs = objs;
 guidata(gcf,myhandles);
 end
 
@@ -340,19 +373,20 @@ objs = myhandles.objs;
 vars = myhandles.vars;
 
 % insert after the independent variable selection box
-insertPos = find(strcmp(objs.active,'indselect')) + 1;
+insertPos = find(strcmp(css.sidemenu1,'indselect')) + 1;
 removeSideMenu(insertPos); % remove all side boxes
-N = length(objs.active); % Get number of sideboxes
+N = length(css.sidemenu1); % Get number of sideboxes
 
 if eventdata.Source.Value ~= 1 % Selection is not the none option
     %%%% Insert box at insertPos
-    if isempty(find(strcmp(objs.active,'indvar'), 1)) 
+    if isempty(find(strcmp(css.sidemenu1,'indvar'), 1)) 
         % if indvar box doesn't already exist
         for bb = fliplr(insertPos:N) % Move each box down one
-            objs.active{bb+1} = objs.active{bb};
+            css.sidemenu1{bb+1} = css.sidemenu1{bb};
         end
     end
-    objs.active{insertPos} = 'indvar';
+    css.sidemenu1{insertPos} = 'indvar';
+    objs.active = css.sidemenu1;
     
     varboxPos = find(strcmp(objs.boxTitles,'varlist'), 1);
     % Redefine variables list BOX
@@ -370,7 +404,7 @@ if eventdata.Source.Value ~= 1 % Selection is not the none option
     objs.indvarbox.string = objs.indvarbox.select{which};
     indvarboxPos = find(strcmp(objs.boxTitles,'indvar'), 1);
     objs.box{indvarboxPos} = objs.indvarbox;
-    objs.box{indvarboxPos}.units = objs.indvarbox.units{which};
+    objs.box{indvarboxPos}.units = objs.varbox.units{which};
     if  isempty(objs.indvarbox.string{3}) % For variables of integer value, the third box is removed
         objs.box{indvarboxPos}.N = 2;
     end
@@ -388,18 +422,19 @@ if eventdata.Source.Value ~= 1 % Selection is not the none option
     popupmenulist = find(strcmp(objs.box{varboxPos}.type,'popupmenu'));
     for ii = popupmenulist
         nn = find(strcmp(vars.label,objs.box{varboxPos}.label(ii)));
-        units = objs.indvarbox.units{nn};
+        units = objs.varbox.units{nn};
         val = find(strcmp(objs.varbox.string{nn},[vars.value{nn},units]));
         objs.box{varboxPos}.itemhandle{ii}.Value = val;
     end
     
 else % None is chosen as independent variable
-    if ~isempty(find(strcmp(objs.active,'indvar'), 1)) % indvar box exists
-        objs.active{insertPos} = [];
+    if ~isempty(find(strcmp(css.sidemenu1,'indvar'), 1)) % indvar box exists
+        css.sidemenu1{insertPos} = [];
         for bb = insertPos:(N-1) % Move each box up one
-            objs.active{bb} = objs.active{bb+1};
+            css.sidemenu1{bb} = css.sidemenu1{bb+1};
         end
-        objs.active(N) = [];
+        css.sidemenu1(N) = [];
+        objs.active = css.sidemenu1;
     end
     
         varboxPos = find(strcmp(objs.boxTitles,'varlist'), 1);
@@ -526,7 +561,7 @@ end
 
 for nn = 1:length(popupmenulist)
     vars.label{popupmenulist(nn)} = varlist.label{nn};
-    vars.value{popupmenulist(nn)} = replace(varlist.itemhandle{nn}.String{varlist.itemhandle{nn}.Value},objs.indvarbox.units,'');
+    vars.value{popupmenulist(nn)} = replace(varlist.itemhandle{nn}.String{varlist.itemhandle{nn}.Value},objs.varbox.units{nn},'');
 end
 
 myhandles.vars = vars; % Variables for the simulation
@@ -536,17 +571,19 @@ guidata(gcf,myhandles);
 end
 
 function loadArray(hObject,eventdata)
-storVars;
+storVars(hObject,eventdata);
 
 myhandles = guidata(gcbo);
 css = myhandles.css;
 objs = myhandles.objs;
 vars = myhandles.vars;
 
-platnum = str2num(objs.box{2}.itemhandle{2}.String{objs.box{2}.itemhandle{2}.Value});
+platnumloc = find(strcmp(objs.box{2}.label,'Number of Platforms'));
+instr = objs.box{2}.itemhandle{platnumloc}.String{objs.box{2}.itemhandle{platnumloc}.Value};
+platnum = str2num(instr);
 if objs.box{2}.itemhandle{8}.Value == 1
         % Define group of microphone platforms
-        vars.platformGroup = Platform([0 0 1.5],platnum,0.5);
+        vars.platformGroup = Platform(vars.sigpos',platnum,0.5);
         [mjs_X, mjs_Y, mjs_Z] = vars.platformGroup.getMics();
         vars.pcs = [mjs_X, mjs_Y, mjs_Z]; % Center points of arrays
         vars.setup = 'EQUIDISTANT';
@@ -555,10 +592,12 @@ elseif  objs.box{2}.itemhandle{8}.Value == 2
     vars.pcs = [X,Y,ones(platnum,1).*1.5];
     vars.setup = 'CHOSEN';
 elseif  objs.box{2}.itemhandle{8}.Value == 3
+    vars.setup = 'CHOSEN';
+elseif  objs.box{2}.itemhandle{8}.Value == 4
     X = rand(platnum,1)*abs(vars.froom(1,2)-vars.froom(1,1))+vars.froom(1,1);
     Y = rand(platnum,1)*abs(vars.froom(2,2)-vars.froom(2,1))+vars.froom(2,1);
     vars.pcs = [X,Y,ones(platnum,1).*1.5];
-    vars.setup = 'MONTE';
+    vars.setup = 'RANDOM';
 end
 
 removeSideMenu(1);
@@ -566,7 +605,12 @@ removeSideMenu(1);
 % Redraw boxes for simulation
 css.adj = 0;
 css.boxTop = css.sideMenuTop;
-objs.active = {'output','srpsim','aftersrp','guiopts'};
+if strcmp(vars.independent,'None')
+    objs.active = css.sidemenu2;
+else
+   objs.active = {css.sidemenu2{:},'scroll'}; 
+   objs.box{9}.label{1} = vars.independent;
+end
 simBoxes = getBoxIndexes(objs.boxTitles,objs.active);
 
 % Copy vars to output box
@@ -581,6 +625,16 @@ end
 
 for ss = 1:length(simBoxes)
 	[css, objs] = loadBox(css,objs,simBoxes(ss));
+end
+
+if ~strcmp(vars.independent,'None')
+    boxID = 9; % scroll box number
+	objs.box{boxID}.itemhandle{1}.Max = vars.value{vars.ii}(end);
+    objs.box{boxID}.itemhandle{1}.Value = vars.value{vars.ii}(1);
+	objs.box{boxID}.itemhandle{1}.Min = vars.value{vars.ii}(1);
+    objs.box{boxID}.itemhandle{1}.SliderStep = ...
+            [1,1]./(length(vars.value{vars.ii})-1);
+
 end
 
 myhandles.vars = vars; % Variables for the simulation
@@ -659,12 +713,15 @@ for itemID = 1:currBox.N
         currBox.labels{ll}.FontName = 'KaiTi';
         ll = ll + 1;
         
-        units = objs.indvarbox.units{itemID};
+        units = objs.varbox.units{itemID};
         currBox.itemhandle{itemID} = uicontrol('Style','slider',...
             'min',str2double(replace(currBox.string{itemID}{1},units,'')),...
             'Value',str2double(replace(currBox.string{itemID}{1},units,'')),...
             'max',str2double(replace(currBox.string{itemID}{end},units,'')),...
-            'Position',[160 css.boxTop-css.itemOffset*(itemID-1) 100 20]);
+            'Position',[160 css.boxTop-css.itemOffset*(itemID-1) 100 20],...
+            'SliderStep', [str2double(replace(currBox.string{itemID}{1},units,'')),...
+             str2double(replace(currBox.string{itemID}{end},units,''))],...
+            'Callback', currBox.callback{itemID});
         css.adj = css.itemOffset*(currBox.N-1)+css.padding;
     end
 end
@@ -713,22 +770,20 @@ end
 
 function errorAnalysis(hObject,eventdata)
 myhandles = guidata(gcbo);
-objs = myhandles.objs;
 vars = myhandles.vars;
 
 %%%% IMAGE ANALYSIS
 [SNRdB,avgnoise,peakSourcePower] = imErrorAnalysis(myhandles.im,vars.gridax,vars.sigpos,8);
 % win_errs(ww,:) = [SNRdB,avgnoise,peakSourcePower];
             
-disp(SNRdB);
-disp(avgnoise);
-disp(peakSourcePower);
+% disp([' SNRdB :', num2str(SNRdB),...
+%       '    Mean Noise :', num2str(avgnoise),...
+%       '    Peak Source Power :', num2str(peakSourcePower)]);
+table(SNRdB,avgnoise,peakSourcePower)
 
 myhandles.vars = vars;
-myhandles.objs = objs;
 guidata(gcf,myhandles);
 end
-
 
 % EXTRA EXAMPLE
 % Permutates the Order of the side menu boxes
@@ -769,25 +824,21 @@ objs = myhandles.objs;
 css = myhandles.css;
 vars = myhandles.vars;
 
-%%%% INCLUDES
-% Prefix to include utility functions
-includeDirectories = load('include.mat','toolspath','includes');
-if isfield(includeDirectories, 'toolspath') == 0
-    toolspath = ''; % same directory if undefined
-else
-    toolspath = includeDirectories.toolspath;
+localvars.value{1} = str2num(vars.value{1});
+localvars.value{2} = str2num(vars.value{2});
+localvars.value{3} = str2num(vars.value{3});
+localvars.value{4} = str2num(vars.value{4})*pi/180;
+localvars.value{5} = str2num(vars.value{5});
+if ~strcmp(vars.independent,'None') % Independent variable selected
+    find(strcmp(vars.label,vars.independent))
 end
-for ii = 1:length(includeDirectories.includes) % for all include files, add to path
-    addpath([ toolspath, includeDirectories.includes{ii}]);
-end
-%%%%
 
 % Upgrade defaults with user inputs
-mjs_N = str2num(vars.value{1});
-mjs_platnum = str2num(vars.value{2});
-dist2center = str2num(vars.value{3});
-mjs_angle = str2num(vars.value{4});
-mic2micLength = str2num(vars.value{5});
+mjs_N = localvars.value{1};
+mjs_platnum = localvars.value{2};
+dist2center = localvars.value{3};
+mjs_angle = localvars.value{4};
+mic2micLength = localvars.value{5};
 source = vars.value{6}; 
 sourcesetup = vars.value{7};
 platsetup = vars.value{8};
@@ -795,13 +846,13 @@ cameraAngle = 2;
 N = 1;
 if strcmp(vars.setup,'EQUIDISTANT')
     mjs_platformGroup = vars.platformGroup;
+    mjs_platformGroup.setRadius(dist2center);
+    [mjs_X, mjs_Y, mjs_Z] = mjs_platformGroup.getMics();
+    vars.pcs = [mjs_X, mjs_Y, mjs_Z]; % Center points of arrays
 end
 mjs_pcs = vars.pcs;
 
-    
-% Dependent Declarations
 micnum = mjs_platnum*mjs_N;  %  Number of mics in array to be tested
-% mic2micLength = sin(pi/mjs_N)*mjs_radius*2; % distance between two adjacent microphones
 mjs_radius = mic2micLength/(200*sin(pi/mjs_N));
 
 waitDialog = waitbar(0,'Running Simulation');
@@ -810,14 +861,11 @@ errs = zeros(N*N,5);
 % for bb = 1:N % iterate through distance to center
 bb = 1;
 
-    % Set Independent Variable for test
-%     angles = linspace(0,pi/2,N); % variable angles
     angles = ones(1,N).*mjs_angle; % constant radii
     radii = ones(1,N)*mjs_radius; % constant radii
 
     % Precompute half angles
     mjs_cos2 = cos(mjs_angle/2); mjs_sin2 = sin(mjs_angle/2);
-
     % Define Platforms
     for pp = 1:mjs_platnum % loop for identical platforms
         mjs_platform(pp) = Platform(mjs_pcs(pp,:),mjs_N,radii(1));
@@ -829,7 +877,6 @@ bb = 1;
         % z axis rotations to orient endfire to source;
         mjs_platform(pp).eulOrient(mjs_pltheta(pp),0); 
     end
-
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %     for aa = 1:N % iterate through angles
 aa = 1;
@@ -892,12 +939,12 @@ waitbar(0.25,waitDialog,'Simulating Source');
                 target = target'*ones(1,vars.sigtot);
     
             case 'WHITE NOISE'
+                [b,a] = butter(5,[200 vars.fs-200]./vars.fs);
                 target = randn(vars.fs,1);
                 target = 10^(-3/20)*(target./max(target));
+                target = filtfilt(b,a,target);
         end
 
-% Random generation of signal position within FOV
-%         vars.sigpos = ((fov(:,2)-fov(:,1))*ones(1,sigtot)).*rand(3,sigtot) + fov(:,1)*ones(1,sigtot);
 % Compute array signals from target
         [sigoutper, taxper] = simarraysigim(target, vars.fs, vars.sigpos, mposplat, vars.froom, vars.bs, vars.prop);
 % Random generation of coherent noise source positions on wall 
@@ -931,11 +978,13 @@ waitbar(0.25,waitDialog,'Simulating Source');
 
 % Matrix to store SNRdB, db(peakSourcePower) and db(avgnoise) for each
 % window iteration
-        win_errs = zeros(N,3);        
+        N_win = 8;
+        win_errs = zeros(N_win,3);        
         
         %  Set up figure for plotting
 %%%% SRP Window
-        for ww = 1:N
+
+        for ww = 1:N_win
 % Random window in 1 second
             rpper = vars.winlen+round((length(target)-2*vars.winlen)*rand(1));
 % Normalize noise power
@@ -962,24 +1011,19 @@ waitbar(.50,waitDialog,'Running SRP image');
             waitbar(.75,waitDialog,'Plotting SRP image');
             
             figure(myhandles.mainfig);
-            zoffset = 1.5;
             myhandles.implot = surf(vars.gridax{1},vars.gridax{2}, myhandles.im);
             peakVal = max(max(myhandles.im));
             colormap(jet); colorbar; axis('xy');
             axis([vars.froom(1,1)-.25, vars.froom(1,2)+.25, vars.froom(2,1)-.25, vars.froom(2,2)+.25]);
             hold on;
-%  Mark coherenet noise positions
-% plot(sigposn(1,:),sigposn(2,:),'xb','MarkerSize', 18,'LineWidth', 2);  %  Coherent noise
-%  Mark actual target positions  
-            myhandles.sourceplot = plot3(vars.sigpos(1,:),vars.sigpos(2,:),ones(vars.sigtot)*peakVal,'ok', 'MarkerSize', 18,'LineWidth', 2);
-%  Mark microphone positions
-%plot(mposperim(1,:),mposperim(2,:),'sr','MarkerSize', 12);
+            %  Mark coherenet noise positions
+%            plot(sigposn(1,:),sigposn(2,:),'xb','MarkerSize', 18,'LineWidth', 2);  %  Coherent noise
+            %  Mark actual target positions  
+            myhandles.sourceplot = plot3(vars.sigpos(1,:),vars.sigpos(2,:),ones(vars.sigtot)*1.5,'ok', 'MarkerSize', 18,'LineWidth', 2);
+            %  Mark microphone positions
             myhandles.micplot = plot3(mposplat(1,:),mposplat(2,:),mposplat(3,:),'sr','MarkerSize', 12);
             axis('tight');
-%  Number them
-%for kn=1:length(mposperim(1,:))
-%    text(mposperim(1,kn),mposperim(2,kn), int2str(kn), 'HorizontalAlignment', 'center')
-%end
+            
 for iii = 1:mjs_platnum % Label Platform numbers
     mjs_loc = mjs_platform(iii).getCenter();
     myhandles.platlabs{iii} = text(mjs_loc(1),mjs_loc(2)+0.5,mjs_loc(3), ['Pl', int2str(iii)], 'HorizontalAlignment', 'center');
@@ -998,41 +1042,27 @@ ylabel('Yaxis Meters')
 title({['SRP image (Mics at squares,'],[' Target in circle, Noise sources at Xs']} )
 hold off
 
-close(waitDialog);
 %%%% IMAGE ANALYSIS
             [SNRdB,avgnoise,peakSourcePower] = imErrorAnalysis(myhandles.im,vars.gridax,vars.sigpos,8);
             win_errs(ww,:) = [SNRdB,avgnoise,peakSourcePower];
         end
-        SNRdB = mean(win_errs(:,1));
-        avgnoise = mean(win_errs(:,2));
-        peakSourcePower = mean(win_errs(:,3));
+        SNRdB = mean(win_errs(:,1))
+        avgnoise = mean(win_errs(:,2))
+        peakSourcePower = mean(win_errs(:,3))
+
+        waitbar(1,waitDialog,'Done');
+        close(waitDialog);
 
 % Error matrix
-        errs(N*(bb-1)+aa,:) = [angles(aa), dist2center(bb),SNRdB,db(avgnoise),db(peakSourcePower)];
+%         errs(N*(bb-1)+aa,:) = [angles(aa), dist2center(bb),SNRdB,db(avgnoise),db(peakSourcePower)];
 
 %     end % END of aa loop
     
-    endfireError(bb) = errs(N*(bb-1)+1,3);
-    broadsideError(bb) = errs(N*(bb-1)+N,3);
+%     endfireError(bb) = errs(N*(bb-1)+1,3);
+%     broadsideError(bb) = errs(N*(bb-1)+N,3);
 % end % END of bb loop
 
-% clear('h','h2','h3');
-% save('error2.mat','errs','endfireError','broadsideError','dist2center',...
-%     'N','N','mjs_platnum','mjs_N','mjs_radius');
 
-% % Plot the Errors
-% %%%% Experimental Results
-% bb = 1:(N);
-% metricID = 2; % 1 is SNRdB, 2 is meanNoisedB and 3 is dBpeakPower
-% errLabels = {'SNR dB of SRP image','Mean Noise in dB', 'Peak Power at Source in dB'};
-% scatter(dist2center(bb),errs(N*(bb-1)+1,metricID+2),'ok'); hold on;
-% scatter(dist2center(bb),errs(N*(bb-1)+N,metricID+2),'+r'); hold off;
-% xlabel('distance to source [m]');
-% % ylabel(errLabels{metricID}); xlim([dist2center(1) dist2center(end)]);
-% title({[errLabels{metricID} ' vs. distance to source for rotating platforms'],...
-%     ['number of Platforms: ', num2str(mjs_platnum), ', Microphones per Platform: ', num2str(mjs_N)],...
-%     ['Radii of Platforms: ', num2str(mjs_radius*100),' [cm], Angle discretization: ', num2str(N) ]}, 'FontSize', 11);
-% legend('endfire','broadside');
 
 myhandles.vars = vars;
 myhandles.css = css;
