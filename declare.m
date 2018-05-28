@@ -1,5 +1,5 @@
 % Script to generate and store declarations
-addpath('M:/toolboxes/AudioArrayToolbox/'); % location of Audio Array Toolbox
+addpath('C:\Users\donohue\Desktop\Sikora\ArrayToolbox\ArrayToolbox/'); % location of Audio Array Toolbox
 
 % default values
 show_plots = 0;
@@ -63,7 +63,7 @@ vars.gridax = {[fov(1,1):vars.rez:fov(1,2)], [fov(2,1):vars.rez:fov(2,2)], [fov(
 N_win = 1;
 
 toolspath = './tools';
-includes = {'/class_Platform',
+includes = {'/class_Platform',...
             '/quaternions'};
         
 save('include.mat','toolspath','includes');
