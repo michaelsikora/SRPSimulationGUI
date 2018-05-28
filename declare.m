@@ -2,11 +2,24 @@
 % 2018.05.21
 % Script to generate and store default variables for srp gui simulator
 
+% Which Computer is this program running on?
+COMPUTER = 0; % default
+desktopVers = '2015b';
+laptopVers = '2017b';
+v = [version('-release')];
+if strcmp(v,desktopVers)
+    COMPUTER = 0; % Desktop
+elseif strcmp(v,laptopVers)
+    COMPUTER = 1; % Laptop
+end
+clear('v','laptopVers','desktopVers');
+
 %%%% INCLUDES
-% Desktop
-addpath('C:\Users\donohue\Desktop\Sikora\ArrayToolbox\ArrayToolbox/'); % location of Audio Array Toolbox
-% Laptop
-addpath('M:/toolboxes/AudioArrayToolbox/'); % location of Audio Array Toolbox
+if COMPUTER == 0
+    addpath('C:\Users\donohue\Desktop\Sikora\ArrayToolbox\ArrayToolbox/'); % location of Audio Array Toolbox
+elseif COMPUTER == 1
+    addpath('M:/toolboxes/AudioArrayToolbox/'); % location of Audio Array Toolbox
+end
 toolspath = './tools';
 includes = {'/class_Platform',...
             '/quaternions'};
@@ -38,18 +51,18 @@ end
 
 %%%% CONSTANTS
 %  Target signal parameters for chirp signal
-vars.f12p = 3000;  %  Corresponding upper frequency limit
+vars.f12p = 7000;  %  Corresponding upper frequency limit
 vars.f11p = 100;  %  Lower frequency limit
 
 vars.fs= 16000;  %  Sample frequency in Hz
 vars.sigtot = 1;   %  Number of targets in FOV
 vars.numnos = 2;   %  Number of coherent targets on wall perimeter
               %  generate target bandwidths
-vars.cnsnr = -300;  %  coherent noise sources SNR to be added relative to strongest target peaks
+vars.cnsnr = -2;  %  coherent noise sources SNR to be added relative to strongest target peaks
 vars.batar = .6; %  Beta values for PHAT processing
 
 %  White noise snr
-vars.wgnsnr = -50;
+vars.wgnsnr = -30;
 vars.sclnos = 10^(vars.wgnsnr/20);
 
 %  Frequency dependent Attenuation
@@ -94,4 +107,5 @@ vars.gridax = {[vars.fov(1,1):vars.rez:vars.fov(1,2)],...
 %%%%%%%%%%%%%%
 
 % number of windows to take and average image results
-vars.N_win = 8;
+vars.N_win = 2;
+vars.computer = COMPUTER;

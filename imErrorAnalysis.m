@@ -1,4 +1,4 @@
-function [SNRdB,avgnoise,peakSourcePower] = imErrorAnalysis(im,gridax,sigpos,box)
+function [SNRdB,avgnoise,peakSourcePower,thresholdMeanPower] = imErrorAnalysis(im,gridax,sigpos,box)
 %IMERRORANALYSIS Error analysis of an image to be used in analysis of SRP image
 
 % im - SRP image
@@ -18,32 +18,46 @@ CCy = find(AA == BB);
 
 gridsize = box; % size of region around peak
 % range
-regx = CCx-gridsize/2:CCx+gridsize/2;
-regy = CCy-gridsize/2:CCy+gridsize/2;
+regx = CCx-gridsize:CCx+gridsize;
+regy = CCy-gridsize:CCy+gridsize;
 % doesn't catch boundary problems if max peak is near edge.
 
-imsourcewindow = zeros(gridsize*2+1);
-for ll = 1:gridsize*2+1
-    for kk = 1:gridsize*2+1
-        imsourcewindow(kk,ll) = im(kk+regx(1)-1,ll+regy(1)-1);
-    end
-end
+% THRESHOLD METHOD
+peakVal = max(max(im));
+thresh = 0.50*peakVal;
+[regx,regy] = find(im>thresh);
 
-srpmax = max(imsourcewindow(:));
-[ymax xmax] = find(im == srpmax); % get index of max peak
-locxmax = gridax{1}(xmax); % get coordinate of max peak
-locymax = gridax{2}(ymax);
+% BOX METHOD
+% imsourcewindow = zeros(gridsize*2+1);
+% for ll = 1:gridsize*2+1
+%     for kk = 1:gridsize*2+1
+%         imsourcewindow(kk,ll) = im(kk+regx(1)-1,ll+regy(1)-1);
+%     end
+% end
 
-peakloc = [ locxmax locymax ];
+% PLOT ABOVE THRESHOLD
+% pause;
+% surf(gridax{1},gridax{2},im.*(im>thresh));
+% xlabel('Xaxis meters'); ylabel('Yaxis meters');
+% title(['Image above threshold of ', num2str(thresh)]);
+% pause;
+
+srpmax = max(im(im>thresh));
+srpmean = mean(im(im>thresh));
+% [ymax xmax] = find(im == srpmax); % get index of max peak
+% locxmax = gridax{1}(xmax); % get coordinate of max peak
+% locymax = gridax{2}(ymax);
+
+% peakloc = [ locxmax locymax ];
 
 % if show_plots == 1
 %    plot3(locxmax, locymax, max(im(:)) ,'ok', 'MarkerSize', 18,'LineWidth', 2);
 % end
 
-gridsize = box; % size of region around peak
-% range
-regx = xmax-gridsize/2:xmax+gridsize/2;
-regy = ymax-gridsize/2:ymax+gridsize/2;
+% gridsize = box; % size of region around peak
+% % range
+% regx = xmax-gridsize/2:xmax+gridsize/2;
+% regy = ymax-gridsize/2:ymax+gridsize/2;
 % doesn't catch boundary problems if max peak is near edge.
 
 xN = length(gridax{1});
@@ -65,6 +79,6 @@ end
 noisevalues(noisevalues<0) = 0; % zero negative noise values
 avgnoise = mean(noisevalues);
 peakSourcePower = srpmax;
-SNRdB = db(srpmax/avgnoise);
+thresholdMeanPower = srpmean;
+SNRdB = db(srpmean/avgnoise);
 end
-

@@ -1,4 +1,4 @@
-function css = genStylesheet()
+function css = genStylesheet(COMPUTER)
 %GENSTYLESHEET Default stylesheet for GUI simulation
 
 %%%% Set Style Attributes
@@ -30,6 +30,15 @@ css.boxTop = css.sideMenuTop;
 
 css.sidemenu1 = {'indselect','varlist','guiopts'};
 css.sidemenu2 = {'output','srpsim','aftersrp','guiopts'};
+
+css.HorizontalAlignment = 'Left'; 
+css.FontWeight = 'bold';
+css.FontSize = 8; 
+if COMPUTER == 0
+    css.FontName = 'Arial';
+elseif COMPUTER == 1
+    css.FontName = 'KaiTi';
+end
 
 end
 

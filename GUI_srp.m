@@ -6,8 +6,7 @@
 %% GUI Fig Loader for dynamic microphone array simulations
 function GUI_srp()
 close all; clear all;
-
-css = genStylesheet();
+css = genStylesheet(0);
 
 %%%% Generate GUI figure window
 mainWin = figure('position',[0 0 css.width css.height], 'name', 'SRCP Simulator', 'NumberTitle', 'off');
@@ -20,7 +19,6 @@ objs.pnl = uipanel(mainWin,'FontSize',12,...
                 'BackgroundColor',css.rgbcolorb'./255,...
                 'Position',[280 20 css.width-280-20 css.height-30]./css.size);
 objs.axes = axes('Parent',objs.pnl);
-
 
 %%%% Left Hand Side SIDE MENU
 %%%% Box for independent variable setup
@@ -136,6 +134,7 @@ for ss = 1:length(currSideMenuIDs)
 end
 
 declare % generates predefined variables
+css = genStylesheet(vars.computer);
 
 %%%% Save GUI data for callback use
 myhandles = guihandles(mainWin); 
@@ -672,10 +671,10 @@ for itemID = 1:currBox.N
             'Position', [css.border+css.padding*2 ...
                      css.boxTop-css.textOffset-css.itemOffset*(itemID-1)...
                      130 20]);
-        currBox.labels{ll}.HorizontalAlignment = 'Left'; 
-        currBox.labels{ll}.FontWeight = 'bold';
-        currBox.labels{ll}.FontSize = 8; 
-        currBox.labels{ll}.FontName = 'KaiTi';
+        currBox.labels{ll}.HorizontalAlignment = css.HorizontalAlignment; 
+        currBox.labels{ll}.FontWeight = css.FontWeight;
+        currBox.labels{ll}.FontSize = css.FontSize; 
+        currBox.labels{ll}.FontName = css.FontName;
         ll = ll + 1;
         
         if isempty(currBox.callback)
@@ -707,10 +706,10 @@ for itemID = 1:currBox.N
             'Position', [css.border+css.padding*2 ...
                      css.boxTop-css.textOffset-css.itemOffset*(itemID-1)...
                      130 20]);
-        currBox.labels{ll}.HorizontalAlignment = 'Left'; 
-        currBox.labels{ll}.FontWeight = 'bold';
-        currBox.labels{ll}.FontSize = 8; 
-        currBox.labels{ll}.FontName = 'KaiTi';
+        currBox.labels{ll}.HorizontalAlignment = css.HorizontalAlignment; 
+        currBox.labels{ll}.FontWeight = css.FontWeight;
+        currBox.labels{ll}.FontSize = css.FontSize; 
+        currBox.labels{ll}.FontName = css.FontName;
         ll = ll + 1;
         
         units = objs.varbox.units{itemID};
@@ -725,6 +724,7 @@ for itemID = 1:currBox.N
         css.adj = css.itemOffset*(currBox.N-1)+css.padding;
     end
 end
+
 % Create rectangle
 currBox.rect = annotation(gcf,'rectangle',...
     [css.border css.boxTop-css.padding-css.adj 250 css.itemOffset+css.adj]./css.size,...
@@ -769,17 +769,17 @@ guidata(gcf,myhandles);
 end
 
 function errorAnalysis(hObject,eventdata)
-myhandles = guidata(gcbo);
+myhandles = guidata(gcf);
 vars = myhandles.vars;
 
 %%%% IMAGE ANALYSIS
-[SNRdB,avgnoise,peakSourcePower] = imErrorAnalysis(myhandles.im,vars.gridax,vars.sigpos,8);
+[SNRdB,avgnoise,peakSourcePower,thresholdMeanPower] = imErrorAnalysis(myhandles.im,vars.gridax,vars.sigpos,8);
 % win_errs(ww,:) = [SNRdB,avgnoise,peakSourcePower];
             
 % disp([' SNRdB :', num2str(SNRdB),...
 %       '    Mean Noise :', num2str(avgnoise),...
 %       '    Peak Source Power :', num2str(peakSourcePower)]);
-table(SNRdB,avgnoise,peakSourcePower)
+table(SNRdB,avgnoise,peakSourcePower,thresholdMeanPower)
 
 myhandles.vars = vars;
 guidata(gcf,myhandles);
@@ -816,7 +816,6 @@ myhandles.objs = objs;
 guidata(gcf,myhandles);
 end
 
-
 %% Function to setup a SRP simulation from GUI
 function setupSim(hObject,eventdata) 
 myhandles = guidata(gcbo);
@@ -843,7 +842,8 @@ source = vars.value{6};
 sourcesetup = vars.value{7};
 platsetup = vars.value{8};
 cameraAngle = 2;
-N = 1;
+N = 8; % number of angles
+myhandles.im = 0;
 if strcmp(vars.setup,'EQUIDISTANT')
     mjs_platformGroup = vars.platformGroup;
     mjs_platformGroup.setRadius(dist2center);
@@ -855,13 +855,13 @@ mjs_pcs = vars.pcs;
 micnum = mjs_platnum*mjs_N;  %  Number of mics in array to be tested
 mjs_radius = mic2micLength/(200*sin(pi/mjs_N));
 
-waitDialog = waitbar(0,'Running Simulation');
 errs = zeros(N*N,5);
 %%%% EXPERIMENT LOOP
 % for bb = 1:N % iterate through distance to center
 bb = 1;
 
-    angles = ones(1,N).*mjs_angle; % constant radii
+%     angles = ones(1,N).*mjs_angle; % constant radii
+    angles = (pi/2)*rand(1,N);
     radii = ones(1,N)*mjs_radius; % constant radii
 
     % Precompute half angles
@@ -878,11 +878,12 @@ bb = 1;
         mjs_platform(pp).eulOrient(mjs_pltheta(pp),0); 
     end
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%     for aa = 1:N % iterate through angles
-aa = 1;
-        fprintf('Angle is %d degrees : ', angles(aa)/pi*180);
+    for aa = 1:N % iterate through angles
+    waitDialog = waitbar(0,'Running Simulation');
+% aa = 1;
+        fprintf('Angle is %02.f degrees : ', angles(aa)/pi*180);
         for pp = 1:mjs_platnum
-        	mjs_platform(pp).eulOrient(mjs_pltheta(pp),mjs_angle); 
+        	mjs_platform(pp).eulOrient(mjs_pltheta(pp),angles(aa)); 
         end
         if aa ~= 1
             for pp = 1:mjs_platnum
@@ -978,7 +979,7 @@ waitbar(0.25,waitDialog,'Simulating Source');
 
 % Matrix to store SNRdB, db(peakSourcePower) and db(avgnoise) for each
 % window iteration
-        N_win = 8;
+        N_win = vars.N_win;
         win_errs = zeros(N_win,3);        
         
         %  Set up figure for plotting
@@ -999,20 +1000,31 @@ waitbar(0.25,waitDialog,'Simulating Source');
             sst = 1+rpper(1)-fix(.9*vars.winlen); 
             sed = sst+min([vars.winlen+textra, siglen]);   %  and end window end
 % create tapering window
-            fprintf(' Window starts at %d seconds \n', sst/vars.fs);
+%             fprintf(' Window starts at %d seconds \n', sst/vars.fs);
             tapwin = flattap(sed-sst+1,20);  %  One dimensional
             wintap = tapwin*ones(1,micnum);  %  Extend to matrix covering all channels
 % Whiten signal (apply PHAT, with beta factor given at the begining)
             sigout = whiten(sigoutpera(sst:sed,:).*wintap, vars.batar);
 % Create SRP Image from processed perimeter array signals
 waitbar(.50,waitDialog,'Running SRP image');
-            myhandles.im = srpframenn(sigout, vars.gridax, mposplat, vars.fs, vars.prop.c, vars.trez);
-            
+            im = srpframenn(sigout, vars.gridax, mposplat, vars.fs, vars.prop.c, vars.trez);
+            if ww == 1
+               myhandles.im = zeros(size(im)); 
+            end
+            myhandles.im = (myhandles.im.*(ww-1)+im)./ww;
             waitbar(.75,waitDialog,'Plotting SRP image');
             
+            %%%% IMAGE ANALYSIS
+%             [SNRdB,avgnoise,peakSourcePower,thresholdMeanPower] = imErrorAnalysis(myhandles.im,vars.gridax,vars.sigpos,8);
+%             win_errs(ww,:) = [SNRdB,avgnoise,peakSourcePower];
+        end
+%         SNRdB = mean(win_errs(:,1));
+%         avgnoise = mean(win_errs(:,2));
+%         peakSourcePower = mean(win_errs(:,3));
+
             figure(myhandles.mainfig);
             myhandles.implot = surf(vars.gridax{1},vars.gridax{2}, myhandles.im);
-            peakVal = max(max(myhandles.im));
+            peakVal = max(max(myhandles.im)); % Used to test convergence
             colormap(jet); colorbar; axis('xy');
             axis([vars.froom(1,1)-.25, vars.froom(1,2)+.25, vars.froom(2,1)-.25, vars.froom(2,2)+.25]);
             hold on;
@@ -1024,49 +1036,46 @@ waitbar(.50,waitDialog,'Running SRP image');
             myhandles.micplot = plot3(mposplat(1,:),mposplat(2,:),mposplat(3,:),'sr','MarkerSize', 12);
             axis('tight');
             
-for iii = 1:mjs_platnum % Label Platform numbers
-    mjs_loc = mjs_platform(iii).getCenter();
-    myhandles.platlabs{iii} = text(mjs_loc(1),mjs_loc(2)+0.5,mjs_loc(3), ['Pl', int2str(iii)], 'HorizontalAlignment', 'center');
-end
+            for iii = 1:mjs_platnum % Label Platform numbers
+                mjs_loc = mjs_platform(iii).getCenter();
+                myhandles.platlabs{iii} = text(mjs_loc(1),mjs_loc(2)+0.5,mjs_loc(3), ['Pl', int2str(iii)], 'HorizontalAlignment', 'center');
+            end
 
-for kn=1:length(mposplat(1,:)) % Label microphones
-    myhandles.miclabs{kn} = text(mposplat(1,kn),mposplat(2,kn),mposplat(3,kn), int2str(kn), 'HorizontalAlignment', 'center');
-end
+            for kn=1:length(mposplat(1,:)) % Label microphones
+                myhandles.miclabs{kn} = text(mposplat(1,kn),mposplat(2,kn),mposplat(3,kn), int2str(kn), 'HorizontalAlignment', 'center');
+            end
 
-%  Draw Room walls
-plot([vars.vn(1,:), vars.vn(1,1)],[vars.vn(2,:), vars.vn(2,1)],'k--')
-% Label Plot
-view(cameraAngle);
-xlabel('Xaxis Meters')
-ylabel('Yaxis Meters')
-title({['SRP image (Mics at squares,'],[' Target in circle, Noise sources at Xs']} )
-hold off
+            % Draw Room walls
+            plot([vars.vn(1,:), vars.vn(1,1)],[vars.vn(2,:), vars.vn(2,1)],'k--')
+            % Label Plot
+            view(cameraAngle);
+            xlabel('Xaxis Meters')
+            ylabel('Yaxis Meters')
+            title({['SRP image (Mics at squares,'],[' Target in circle, Noise sources at Xs']} )
+            hold off            
 
 %%%% IMAGE ANALYSIS
-            [SNRdB,avgnoise,peakSourcePower] = imErrorAnalysis(myhandles.im,vars.gridax,vars.sigpos,8);
-            win_errs(ww,:) = [SNRdB,avgnoise,peakSourcePower];
-        end
-        SNRdB = mean(win_errs(:,1))
-        avgnoise = mean(win_errs(:,2))
-        peakSourcePower = mean(win_errs(:,3))
-
+[SNRdB,avgnoise,peakSourcePower,thresholdMeanPower] = imErrorAnalysis(myhandles.im,vars.gridax,vars.sigpos,8);
+% win_errs(ww,:) = [SNRdB,avgnoise,peakSourcePower];
+            
+% disp([' SNRdB :', num2str(SNRdB),...
+%       '    Mean Noise :', num2str(avgnoise),...
+%       '    Peak Source Power :', num2str(peakSourcePower)]);
+table(SNRdB,avgnoise,peakSourcePower,thresholdMeanPower)
+SNRarray(aa) = SNRdB;
+        
         waitbar(1,waitDialog,'Done');
         close(waitDialog);
-
-% Error matrix
-%         errs(N*(bb-1)+aa,:) = [angles(aa), dist2center(bb),SNRdB,db(avgnoise),db(peakSourcePower)];
-
-%     end % END of aa loop
+% pause
+    end % END of aa loop
     
-%     endfireError(bb) = errs(N*(bb-1)+1,3);
-%     broadsideError(bb) = errs(N*(bb-1)+N,3);
 % end % END of bb loop
-
-
+scatter(angles.*180/pi,SNRarray);
+title('SNRdB vs. angle of platform');
+xlabel('Angle degrees'); ylabel('SNRdB');
 
 myhandles.vars = vars;
 myhandles.css = css;
 myhandles.objs = objs;
 guidata(gcf,myhandles);
 end
-
