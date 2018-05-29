@@ -51,18 +51,18 @@ end
 
 %%%% CONSTANTS
 %  Target signal parameters for chirp signal
-vars.f12p = 7000;  %  Corresponding upper frequency limit
+vars.f12p = 3000;  %  Corresponding upper frequency limit
 vars.f11p = 100;  %  Lower frequency limit
 
-vars.fs= 16000;  %  Sample frequency in Hz
+vars.fs= 8000;  %  Sample frequency in Hz
 vars.sigtot = 1;   %  Number of targets in FOV
 vars.numnos = 2;   %  Number of coherent targets on wall perimeter
               %  generate target bandwidths
-vars.cnsnr = -2;  %  coherent noise sources SNR to be added relative to strongest target peaks
+vars.cnsnr = -300;  %  coherent noise sources SNR to be added relative to strongest target peaks
 vars.batar = .6; %  Beta values for PHAT processing
 
 %  White noise snr
-vars.wgnsnr = -30;
+vars.wgnsnr = -60;
 vars.sclnos = 10^(vars.wgnsnr/20);
 
 %  Frequency dependent Attenuation

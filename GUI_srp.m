@@ -5,7 +5,7 @@
 
 %% GUI Fig Loader for dynamic microphone array simulations
 function GUI_srp()
-close all; clear all;
+close all;
 css = genStylesheet(0);
 
 %%%% Generate GUI figure window
@@ -53,14 +53,14 @@ objs.varbox.label = {'Mics per Platform','Number of Platforms',...
 objs.varbox.type  = {'popupmenu','popupmenu','popupmenu',...
                 'popupmenu','popupmenu','popupmenu',...
                 'popupmenu','popupmenu','pushbutton'};% types of the objects
-objs.varbox.string = {{'2','3','4','5'},...
-                {'1','2','3','4','5'},...
+objs.varbox.string = {{'1','2','3','4','5'},...
+                {'1','2','3','4','5','6'},...
                 {'0.5m','1m','1.5m','2m','2.5m','3m','3.5m'},...
                 {'0deg','45deg','90deg'},...
                 {'5cm','10cm','17cm','20cm','25cm','30cm'},...
                 {'IMPULSE','MOZART','SINE','WHITE NOISE'},...
                 {'Center','Choose Location','Random XY'},...
-                {'Equidistant','Choose Locations','Use Stored Values','Random XY'},...
+                {'Equidistant','Choose Locations','Use Stored Values','Random XY','Linear'},...
                 {}}; % string values for object
 objs.varbox.callback = {'','','','','','',@setLocS,'',@loadArray};
 objs.varbox.units = {'','','m','deg','cm','','','',''};
@@ -263,8 +263,11 @@ if find(strcmp(objs.active,'varlist'))
     storVars(hObject,eventdata)
 end
 
+[file,path,indx] = uiputfile({'matlab *.mat'});
+
 removeSideMenu(1);
-save('variableSave.mat','vars','objs','im');
+% save('variableSave.mat','vars','objs','im');
+save([path, file],'vars','objs','im');
 % Draw Starting side menu
 css.adj = 0;
 css.boxTop = css.sideMenuTop;
@@ -291,9 +294,10 @@ myhandles = guidata(gcbo);
 objs = myhandles.objs;
 vars = myhandles.vars;
 css = myhandles.css;
+[file,path,indx] = uigetfile('matlab *.mat');
 
 removeSideMenu(1);
-load('variableSave.mat','vars','objs');
+load([path, file],'vars','objs');
 % Draw Starting side menu
 css.adj = 0;
 css.boxTop = css.sideMenuTop;
@@ -597,6 +601,8 @@ elseif  objs.box{2}.itemhandle{8}.Value == 4
     Y = rand(platnum,1)*abs(vars.froom(2,2)-vars.froom(2,1))+vars.froom(2,1);
     vars.pcs = [X,Y,ones(platnum,1).*1.5];
     vars.setup = 'RANDOM';
+elseif  objs.box{2}.itemhandle{8}.Value == 5
+    vars.setup = 'LINEAR';
 end
 
 removeSideMenu(1);
@@ -823,54 +829,65 @@ objs = myhandles.objs;
 css = myhandles.css;
 vars = myhandles.vars;
 
-localvars.value{1} = str2num(vars.value{1});
-localvars.value{2} = str2num(vars.value{2});
-localvars.value{3} = str2num(vars.value{3});
-localvars.value{4} = str2num(vars.value{4})*pi/180;
-localvars.value{5} = str2num(vars.value{5});
+localvars.value{1} = str2num(vars.value{1}); % mjs_N
+localvars.value{2} = str2num(vars.value{2}); % mjs_platnum
+localvars.value{3} = str2num(vars.value{3}); % dist2source
+localvars.value{4} = str2num(vars.value{4})*pi/180; % mjs2_angle
+localvars.value{5} = str2num(vars.value{5}); % mic2miclength
 if ~strcmp(vars.independent,'None') % Independent variable selected
-    find(strcmp(vars.label,vars.independent))
+    localvars.indvalues = localvars.value{vars.ii};
+    localvars.value{vars.ii} = localvars.indvalues(1);
+%     localvars.ii = find(strcmp(vars.label,vars.independent));
 end
 
+
 % Upgrade defaults with user inputs
-mjs_N = localvars.value{1};
-mjs_platnum = localvars.value{2};
-dist2center = localvars.value{3};
-mjs_angle = localvars.value{4};
-mic2micLength = localvars.value{5};
 source = vars.value{6}; 
 sourcesetup = vars.value{7};
 platsetup = vars.value{8};
 cameraAngle = 2;
-N = 8; % number of angles
+N = 2; % number of angles
+aperature = 2; % meters
+center = 0;
 myhandles.im = 0;
+
+micnum = localvars.value{2}*localvars.value{1};  %  Number of mics in array to be tested
+mjs_radius = localvars.value{5}/(200*sin(pi/localvars.value{1}));
+
 if strcmp(vars.setup,'EQUIDISTANT')
     mjs_platformGroup = vars.platformGroup;
-    mjs_platformGroup.setRadius(dist2center);
+    mjs_platformGroup.setRadius(localvars.value{3});
     [mjs_X, mjs_Y, mjs_Z] = mjs_platformGroup.getMics();
     vars.pcs = [mjs_X, mjs_Y, mjs_Z]; % Center points of arrays
+elseif strcmp(vars.setup,'LINEAR')
+    micnum = localvars.value{2};  %  Number of mics in array to be tested
+    I = ones(localvars.value{2},1);
+    vars.pcs = [...
+        linspace(center-aperature/2,center+aperature/2,localvars.value{2})'...
+        I*3 I*1.5];
 end
-mjs_pcs = vars.pcs;
-
-micnum = mjs_platnum*mjs_N;  %  Number of mics in array to be tested
-mjs_radius = mic2micLength/(200*sin(pi/mjs_N));
 
 errs = zeros(N*N,5);
 %%%% EXPERIMENT LOOP
 % for bb = 1:N % iterate through distance to center
 bb = 1;
+for aa = 1:N % iterate through angles
 
-%     angles = ones(1,N).*mjs_angle; % constant radii
+%     angles = ones(1,N).*localvars.value{4}; % constant radii
     angles = (pi/2)*rand(1,N);
     radii = ones(1,N)*mjs_radius; % constant radii
-
+    waitDialog = waitbar(0,'Running Simulation');
+    
+    if strcmp(vars.setup,'LINEAR')
+        mposplat = vars.pcs';
+    else
     % Precompute half angles
-    mjs_cos2 = cos(mjs_angle/2); mjs_sin2 = sin(mjs_angle/2);
+    mjs_cos2 = cos(localvars.value{4}/2); mjs_sin2 = sin(localvars.value{4}/2);
     % Define Platforms
-    for pp = 1:mjs_platnum % loop for identical platforms
-        mjs_platform(pp) = Platform(mjs_pcs(pp,:),mjs_N,radii(1));
+    for pp = 1:localvars.value{2} % loop for identical platforms
+        mjs_platform(pp) = Platform(vars.pcs(pp,:),localvars.value{1},radii(1));
         % vector from each mic center to source location
-        mjs_pl2src(pp,:) = vars.sigpos-mjs_pcs(pp,:)';
+        mjs_pl2src(pp,:) = vars.sigpos-vars.pcs(pp,:)';
         mjs_pltheta(pp) = atan2(mjs_pl2src(pp,2),mjs_pl2src(pp,1));
         % tangential planar vector for rotation
         mjs_pltan2src(pp,:) = cross(mjs_pl2src(pp,:),[0 0 1]);
@@ -878,26 +895,23 @@ bb = 1;
         mjs_platform(pp).eulOrient(mjs_pltheta(pp),0); 
     end
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    for aa = 1:N % iterate through angles
-    waitDialog = waitbar(0,'Running Simulation');
-% aa = 1;
         fprintf('Angle is %02.f degrees : ', angles(aa)/pi*180);
-        for pp = 1:mjs_platnum
+        for pp = 1:localvars.value{2}
         	mjs_platform(pp).eulOrient(mjs_pltheta(pp),angles(aa)); 
         end
         if aa ~= 1
-            for pp = 1:mjs_platnum
+            for pp = 1:localvars.value{2}
                 mjs_platform(pp).eulOrient(mjs_pltheta(pp),angles(aa)); 
             end
         end
-        mposplat = zeros(3,micnum);
 
 % Add microphone coordinates to mic position matrix
-        for pp = 1:mjs_platnum
+        for pp = 1:localvars.value{2}
             [mjs_X, mjs_Y, mjs_Z] = mjs_platform(pp).getMics();
-            mposplat(:,(pp-1)*mjs_N+(1:mjs_N)) = [mjs_X, mjs_Y, mjs_Z]'; % Set mic coordinates
+            mposplat(:,(pp-1)*localvars.value{1}+(1:localvars.value{1})) = [mjs_X, mjs_Y, mjs_Z]'; % Set mic coordinates
         end
-    
+    end
+%         mposplat = zeros(3,micnum);
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Find max distance (delay) over all mic pairs; this represents an upper bound
 % on all required relative delays when scanning over the FOV
@@ -1036,9 +1050,11 @@ waitbar(.50,waitDialog,'Running SRP image');
             myhandles.micplot = plot3(mposplat(1,:),mposplat(2,:),mposplat(3,:),'sr','MarkerSize', 12);
             axis('tight');
             
-            for iii = 1:mjs_platnum % Label Platform numbers
+            if ~strcmp(vars.setup,'LINEAR')
+            for iii = 1:localvars.value{2} % Label Platform numbers
                 mjs_loc = mjs_platform(iii).getCenter();
                 myhandles.platlabs{iii} = text(mjs_loc(1),mjs_loc(2)+0.5,mjs_loc(3), ['Pl', int2str(iii)], 'HorizontalAlignment', 'center');
+            end
             end
 
             for kn=1:length(mposplat(1,:)) % Label microphones
@@ -1070,9 +1086,9 @@ SNRarray(aa) = SNRdB;
     end % END of aa loop
     
 % end % END of bb loop
-scatter(angles.*180/pi,SNRarray);
-title('SNRdB vs. angle of platform');
-xlabel('Angle degrees'); ylabel('SNRdB');
+% scatter(angles.*180/pi,SNRarray);
+% title('SNRdB vs. angle of platform');
+% xlabel('Angle degrees'); ylabel('SNRdB');
 
 myhandles.vars = vars;
 myhandles.css = css;
