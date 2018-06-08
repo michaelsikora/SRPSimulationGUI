@@ -102,7 +102,7 @@ objs.box{6}.N = 2; % number of objects in box
 objs.box{6}.label = {'Edit Variables','Run SRP'} ;% text for label
 objs.box{6}.type  = {'pushbutton','pushbutton'};% types of the objects
 objs.box{6}.string = {{},{},{}}; % string values for object
-objs.box{6}.callback = {@editvars,@setupSim};
+objs.box{6}.callback = {@editvars,@runSRP};
 
 %%%% BOX 7 used to setup independent variable
 objs.box{7}.N = 1;
@@ -823,7 +823,7 @@ guidata(gcf,myhandles);
 end
 
 %% Function to setup a SRP simulation from GUI
-function setupSim(hObject,eventdata) 
+function runSRP(hObject,eventdata) 
 myhandles = guidata(gcbo);
 objs = myhandles.objs;
 css = myhandles.css;

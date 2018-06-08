@@ -107,5 +107,5 @@ vars.gridax = {[vars.fov(1,1):vars.rez:vars.fov(1,2)],...
 %%%%%%%%%%%%%%
 
 % number of windows to take and average image results
-vars.N_win = 2;
+vars.N_win = 1;
 vars.computer = COMPUTER;
