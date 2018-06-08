@@ -117,7 +117,7 @@ objs.box{8}.callback = {@errorAnalysis,@saveFig};
 objs.box{9}.N = 2;
 objs.box{9}.label = {'Scroll','---'};
 objs.box{9}.type = {'slider','text'};
-objs.box{9}.string = {{'1','3'},{}};
+objs.box{9}.string = {{'1','100'},{}};
 objs.box{9}.callback = {@expSliderMove,''};
 
 %%%% Define Side menu box labels and tentatively use for ordering in display
@@ -189,7 +189,6 @@ else
         varlist.itemhandle{ii}.Value = val;
     end
 end
-
 
 myhandles.css = css;
 myhandles.objs = objs;
@@ -315,7 +314,7 @@ myhandles.vars = vars;
 myhandles.objs = objs;
 guidata(gcf,myhandles);
 
-editvars(hObject,eventdata);
+% editvars(hObject,eventdata);
 end
 
 % Finds the indexes of all elements in one cell array in another, assumes
@@ -339,11 +338,47 @@ myhandles = guidata(gcf);
 objs = myhandles.objs;
 vars = myhandles.vars;
 
-EventData.Source.Value = round(EventData.Source.Value);
-% disp(EventData.Source.Value);
-units = objs.varbox.units{vars.ii};
-objs.box{9}.itemhandle{2}.String = [num2str(EventData.Source.Value),units];
+for pp = 1:length(myhandles.im)
+   peak(pp) = max(max(myhandles.im{pp})); 
+   low(pp) = min(min(myhandles.im{pp}));
+end
+zmax = max(peak)*1.01;
+zmin = min(low);
 
+units = objs.varbox.units{vars.ii};
+objs.box{9}.itemhandle{2}.String = [num2str(round(EventData.Source.Value*10)/10),units];
+[lowest idx] = min(abs(vars.value{vars.ii}-EventData.Source.Value));
+vars.currentImageIndex = idx;
+limits = axis;
+myhandles.implot.delete;
+myhandles.micplot.delete;
+myhandles.sourceplot.delete;
+hold on;
+myhandles.implot = surf(vars.gridax{1},vars.gridax{2}, myhandles.im{idx});
+
+%  Mark coherenet noise positions
+%       plot(sigposn(1,:),sigposn(2,:),'xb','MarkerSize', 18,'LineWidth', 2);  %  Coherent noise
+%  Mark actual target positions  
+myhandles.sourceplot = plot3(vars.sigpos(1,:),vars.sigpos(2,:),ones(vars.sigtot)*1.5,'ok', 'MarkerSize', 18,'LineWidth', 2);
+%  Mark microphone positions
+myhandles.micplot = plot3(vars.mposplat{idx}(1,:),vars.mposplat{idx}(2,:),vars.mposplat{idx}(3,:),'sr','MarkerSize', 12);
+
+if ~strcmp(vars.setup,'LINEAR')
+    for iii = 1:size(vars.platcenters{idx},1) % Label Platform numbers
+        myhandles.platlabs{idx}(iii).delete;
+        myhandles.platlabs{idx}(iii) = text(vars.platcenters{idx}(iii,1),vars.platcenters{idx}(iii,2)+0.5,vars.platcenters{idx}(iii,3), ['Pl', int2str(iii)], 'HorizontalAlignment', 'center');
+    end
+end
+for kn=1:length(vars.mposplat{idx}(1,:)) % Label microphones
+        myhandles.miclabs{kn}.delete; % delete existing
+        myhandles.miclabs{kn} = text(vars.mposplat{idx}(1,kn),vars.mposplat{idx}(2,kn),vars.mposplat{idx}(3,kn), int2str(kn), 'HorizontalAlignment', 'center');
+end
+
+hold off;   
+caxis([zmin zmax]);
+axis([limits(1:4),zmin, zmax]);
+
+myhandles.vars = vars;
 myhandles.objs = objs;
 guidata(gcf,myhandles);
 end
@@ -564,7 +599,7 @@ end
 
 for nn = 1:length(popupmenulist)
     vars.label{popupmenulist(nn)} = varlist.label{nn};
-    vars.value{popupmenulist(nn)} = replace(varlist.itemhandle{nn}.String{varlist.itemhandle{nn}.Value},objs.varbox.units{nn},'');
+    vars.value{popupmenulist(nn)} = replace(varlist.itemhandle{nn}.String{varlist.itemhandle{nn}.Value},objs.varbox.units{popupmenulist(nn)},'');
 end
 
 myhandles.vars = vars; % Variables for the simulation
@@ -610,12 +645,7 @@ removeSideMenu(1);
 % Redraw boxes for simulation
 css.adj = 0;
 css.boxTop = css.sideMenuTop;
-if strcmp(vars.independent,'None')
-    objs.active = css.sidemenu2;
-else
-   objs.active = {css.sidemenu2{:},'scroll'}; 
-   objs.box{9}.label{1} = vars.independent;
-end
+objs.active = css.sidemenu2;
 simBoxes = getBoxIndexes(objs.boxTitles,objs.active);
 
 % Copy vars to output box
@@ -630,16 +660,6 @@ end
 
 for ss = 1:length(simBoxes)
 	[css, objs] = loadBox(css,objs,simBoxes(ss));
-end
-
-if ~strcmp(vars.independent,'None')
-    boxID = 9; % scroll box number
-	objs.box{boxID}.itemhandle{1}.Max = vars.value{vars.ii}(end);
-    objs.box{boxID}.itemhandle{1}.Value = vars.value{vars.ii}(1);
-	objs.box{boxID}.itemhandle{1}.Min = vars.value{vars.ii}(1);
-    objs.box{boxID}.itemhandle{1}.SliderStep = ...
-            [1,1]./(length(vars.value{vars.ii})-1);
-
 end
 
 myhandles.vars = vars; % Variables for the simulation
@@ -779,7 +799,7 @@ myhandles = guidata(gcf);
 vars = myhandles.vars;
 
 %%%% IMAGE ANALYSIS
-[SNRdB,avgnoise,peakSourcePower,thresholdMeanPower] = imErrorAnalysis(myhandles.im,vars.gridax,vars.sigpos,8);
+[SNRdB,avgnoise,peakSourcePower,thresholdMeanPower] = imErrorAnalysis(myhandles.im{vars.currentImageIndex},vars.gridax,vars.sigpos,8);
 % win_errs(ww,:) = [SNRdB,avgnoise,peakSourcePower];
             
 % disp([' SNRdB :', num2str(SNRdB),...
@@ -829,94 +849,92 @@ objs = myhandles.objs;
 css = myhandles.css;
 vars = myhandles.vars;
 
-localvars.value{1} = str2num(vars.value{1}); % mjs_N
-localvars.value{2} = str2num(vars.value{2}); % mjs_platnum
-localvars.value{3} = str2num(vars.value{3}); % dist2source
-localvars.value{4} = str2num(vars.value{4})*pi/180; % mjs2_angle
-localvars.value{5} = str2num(vars.value{5}); % mic2miclength
-if ~strcmp(vars.independent,'None') % Independent variable selected
-    localvars.indvalues = localvars.value{vars.ii};
-    localvars.value{vars.ii} = localvars.indvalues(1);
-%     localvars.ii = find(strcmp(vars.label,vars.independent));
+coeff = [1 1 1 (pi/180) 1]; % values to scale input variables
+for vv = 1:5 % load numerical variables from user data
+    if ischar(vars.value{vv})
+        localvars.value{vv} = str2double(vars.value{vv}).*coeff(vv);
+    else
+        localvars.value{vv} = vars.value{vv}.*coeff(vv);
+    end
 end
 
+% store independent variable array
+if strcmp(vars.independent,'None') %
+    vars.ii = 1;
+end
+localvars.indvalues = localvars.value{vars.ii};
+localvars.value{vars.ii} = localvars.indvalues(1);
 
 % Upgrade defaults with user inputs
-source = vars.value{6}; 
+source = vars.value{6};
 sourcesetup = vars.value{7};
 platsetup = vars.value{8};
 cameraAngle = 2;
-N = 2; % number of angles
+N = 1; % number of angles
 aperature = 2; % meters
 center = 0;
-myhandles.im = 0;
+myhandles.im{1} = 0;
 
-micnum = localvars.value{2}*localvars.value{1};  %  Number of mics in array to be tested
-mjs_radius = localvars.value{5}/(200*sin(pi/localvars.value{1}));
 
-if strcmp(vars.setup,'EQUIDISTANT')
-    mjs_platformGroup = vars.platformGroup;
-    mjs_platformGroup.setRadius(localvars.value{3});
-    [mjs_X, mjs_Y, mjs_Z] = mjs_platformGroup.getMics();
-    vars.pcs = [mjs_X, mjs_Y, mjs_Z]; % Center points of arrays
-elseif strcmp(vars.setup,'LINEAR')
-    micnum = localvars.value{2};  %  Number of mics in array to be tested
-    I = ones(localvars.value{2},1);
-    vars.pcs = [...
-        linspace(center-aperature/2,center+aperature/2,localvars.value{2})'...
-        I*3 I*1.5];
-end
+waitDialog = waitbar(0,'Running Simulation');
+% independent variable loop
+for aa = 1:length(localvars.indvalues)
+localvars.value{vars.ii} = localvars.indvalues(aa);
 
-errs = zeros(N*N,5);
-%%%% EXPERIMENT LOOP
-% for bb = 1:N % iterate through distance to center
-bb = 1;
-for aa = 1:N % iterate through angles
+    micnum = localvars.value{2}*localvars.value{1};  %  Number of mics in array to be tested
+    mjs_radius = localvars.value{5}/(200*sin(pi/localvars.value{1}));
 
-%     angles = ones(1,N).*localvars.value{4}; % constant radii
-    angles = (pi/2)*rand(1,N);
-    radii = ones(1,N)*mjs_radius; % constant radii
-    waitDialog = waitbar(0,'Running Simulation');
+    if strcmp(vars.setup,'EQUIDISTANT')
+        mjs_platformGroup = vars.platformGroup;
+        mjs_platformGroup.setRadius(localvars.value{3});
+        [mjs_X, mjs_Y, mjs_Z] = mjs_platformGroup.getMics();
+        vars.pcs = [mjs_X, mjs_Y, mjs_Z]; % Center points of arrays
+    elseif strcmp(vars.setup,'LINEAR')
+        micnum = localvars.value{2};  %  Number of mics in array to be tested
+        I = ones(localvars.value{2},1);
+        vars.pcs = [...
+            linspace(center-aperature/2,center+aperature/2,localvars.value{2})'...
+            I*3 I*1.5];
+    end
+
+%     for bb = 1:N % iterate through angles
+%     angles = (pi/2)*rand(1,N); % random angle
     
     if strcmp(vars.setup,'LINEAR')
-        mposplat = vars.pcs';
+        vars.mposplat{aa} = vars.pcs';
     else
-    % Precompute half angles
+        
+    % Precompute half angles for quaternion rotation
     mjs_cos2 = cos(localvars.value{4}/2); mjs_sin2 = sin(localvars.value{4}/2);
     % Define Platforms
-    for pp = 1:localvars.value{2} % loop for identical platforms
-        mjs_platform(pp) = Platform(vars.pcs(pp,:),localvars.value{1},radii(1));
-        % vector from each mic center to source location
-        mjs_pl2src(pp,:) = vars.sigpos-vars.pcs(pp,:)';
-        mjs_pltheta(pp) = atan2(mjs_pl2src(pp,2),mjs_pl2src(pp,1));
-        % tangential planar vector for rotation
-        mjs_pltan2src(pp,:) = cross(mjs_pl2src(pp,:),[0 0 1]);
-        % z axis rotations to orient endfire to source;
-        mjs_platform(pp).eulOrient(mjs_pltheta(pp),0); 
-    end
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        fprintf('Angle is %02.f degrees : ', angles(aa)/pi*180);
-        for pp = 1:localvars.value{2}
-        	mjs_platform(pp).eulOrient(mjs_pltheta(pp),angles(aa)); 
+        for pp = 1:localvars.value{2} % loop for identical platforms
+            mjs_platform(pp) = Platform(vars.pcs(pp,:),localvars.value{1},localvars.value{5}/100);
+            % vector from each mic center to source location
+            mjs_pl2src(pp,:) = vars.sigpos-vars.pcs(pp,:)';
+            mjs_pltheta(pp) = atan2(mjs_pl2src(pp,2),mjs_pl2src(pp,1));
+            % tangential planar vector for rotation
+            mjs_pltan2src(pp,:) = cross(mjs_pl2src(pp,:),[0 0 1]);
+            % z axis rotations to orient endfire to source;
+            mjs_platform(pp).eulOrient(mjs_pltheta(pp),0); 
         end
-        if aa ~= 1
-            for pp = 1:localvars.value{2}
-                mjs_platform(pp).eulOrient(mjs_pltheta(pp),angles(aa)); 
-            end
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        fprintf('Angle is %02.f degrees : ', localvars.value{4}/pi*180);
+        for pp = 1:localvars.value{2}
+        	mjs_platform(pp).eulOrient(mjs_pltheta(pp),localvars.value{4}); 
         end
 
 % Add microphone coordinates to mic position matrix
         for pp = 1:localvars.value{2}
             [mjs_X, mjs_Y, mjs_Z] = mjs_platform(pp).getMics();
-            mposplat(:,(pp-1)*localvars.value{1}+(1:localvars.value{1})) = [mjs_X, mjs_Y, mjs_Z]'; % Set mic coordinates
+            vars.mposplat{aa}(:,(pp-1)*localvars.value{1}+(1:localvars.value{1})) = [mjs_X, mjs_Y, mjs_Z]'; % Set mic coordinates
         end
     end
-%         mposplat = zeros(3,micnum);
+%         vars.mposplat{aa} = zeros(3,micnum);
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Find max distance (delay) over all mic pairs; this represents an upper bound
 % on all required relative delays when scanning over the FOV
-        [rm, nm] = size(mposplat);
-        prs = mposanaly(mposplat,2);
+        [rm, nm] = size(vars.mposplat{aa});
+        prs = mposanaly(vars.mposplat{aa},2);
 
 % Maximum delay in seconds needed to synchronize in Delay and Sum beamforming
         maxmicd = max(prs(:,3));
@@ -961,7 +979,7 @@ waitbar(0.25,waitDialog,'Simulating Source');
         end
 
 % Compute array signals from target
-        [sigoutper, taxper] = simarraysigim(target, vars.fs, vars.sigpos, mposplat, vars.froom, vars.bs, vars.prop);
+        [sigoutper, taxper] = simarraysigim(target, vars.fs, vars.sigpos, vars.mposplat{aa}, vars.froom, vars.bs, vars.prop);
 % Random generation of coherent noise source positions on wall 
 %         for knn=1:numnos
 %             randv = ceil(rand(1,1)*4);
@@ -975,120 +993,139 @@ waitbar(0.25,waitDialog,'Simulating Source');
         onos = randn(rt,vars.numnos);
 % place white noise target randomly on wall
 %         [nosoutper, taxnosper] = simarraysigim(onos,vars.fs, sigposn, mposperim, froom, bs, vars.prop);
-        [nosoutper, taxnosper] = simarraysigim(onos,vars.fs, sigposn, mposplat, vars.froom, vars.bs, vars.prop);
+        [nosoutper, taxnosper] = simarraysigim(onos,vars.fs, sigposn, vars.mposplat{aa}, vars.froom, vars.bs, vars.prop);
 
-%%%% ENVELOPE SOURCE
+        %%%% ENVELOPE SOURCE
         [mxp,cp] = max(max(abs(sigoutper)));  % Max point over all channels
         envper = abs(hilbert(sigoutper(:,cp(1))));  % Compute envelope of strongest channel
-% Compute maximum envelope point for reference in SNRs
-% Also location of max point will be used to ensure time window processed includes
-% the target
+        % Compute maximum envelope point for reference in SNRs
+        % Also location of max point will be used to ensure time window processed includes
+        % the target
         [perpkpr, rpper] = max(envper);
-% Trim room signals to same length
+        % Trim room signals to same length
         [siglenper, mc] = size(sigoutper);
         [noslenper, mc] = size(nosoutper);
         siglen = min([siglenper, noslenper]);
         sigoutper = sigoutper(1:siglen,:);
         nosoutper = nosoutper(1:siglen,:);
 
-% Matrix to store SNRdB, db(peakSourcePower) and db(avgnoise) for each
-% window iteration
-        N_win = vars.N_win;
-        win_errs = zeros(N_win,3);        
-        
-        %  Set up figure for plotting
-%%%% SRP Window
-
+        N_win = vars.N_win;   
+        %%%% SRP Window
         for ww = 1:N_win
-% Random window in 1 second
-            rpper = vars.winlen+round((length(target)-2*vars.winlen)*rand(1));
-% Normalize noise power
+            % Random window in 1 second
+%             rpper = vars.winlen+round((length(target)-2*vars.winlen)*rand(1));
+            rpper = vars.winlen+round((length(target)-2*vars.winlen)*0.4);
+            % Normalize noise power
             nosoutper = nosoutper/sqrt(mean(mean(nosoutper.^2)));
-% Add coherent noise to target signals
+            % Add coherent noise to target signals
             nos = randn(siglen,mc);
             asnr = 10^((vars.cnsnr/20));
             nosamp = asnr*perpkpr;
             sigoutpera = sigoutper + nosamp*nosoutper + nos*vars.sclnos*perpkpr;
-% Initialize signal window index to beginning index, offset to ensure it includes target
-% signal
+            % Initialize signal window index to beginning index, offset to ensure it includes target
+            % signal
             sst = 1+rpper(1)-fix(.9*vars.winlen); 
             sed = sst+min([vars.winlen+textra, siglen]);   %  and end window end
-% create tapering window
+            % create tapering window
 %             fprintf(' Window starts at %d seconds \n', sst/vars.fs);
             tapwin = flattap(sed-sst+1,20);  %  One dimensional
             wintap = tapwin*ones(1,micnum);  %  Extend to matrix covering all channels
-% Whiten signal (apply PHAT, with beta factor given at the begining)
+            % Whiten signal (apply PHAT, with beta factor given at the begining)
             sigout = whiten(sigoutpera(sst:sed,:).*wintap, vars.batar);
-% Create SRP Image from processed perimeter array signals
-waitbar(.50,waitDialog,'Running SRP image');
-            im = srpframenn(sigout, vars.gridax, mposplat, vars.fs, vars.prop.c, vars.trez);
+            % Create SRP Image from processed perimeter array signals
+            waitbar(.50,waitDialog,'Running SRP image');
+            im = srpframenn(sigout, vars.gridax, vars.mposplat{aa}, vars.fs, vars.prop.c, vars.trez);
             if ww == 1
-               myhandles.im = zeros(size(im)); 
+               myhandles.im{aa} = zeros(size(im)); 
             end
-            myhandles.im = (myhandles.im.*(ww-1)+im)./ww;
+            myhandles.im{aa} = (myhandles.im{aa}.*(ww-1)+im)./ww;
             waitbar(.75,waitDialog,'Plotting SRP image');
             
             %%%% IMAGE ANALYSIS
-%             [SNRdB,avgnoise,peakSourcePower,thresholdMeanPower] = imErrorAnalysis(myhandles.im,vars.gridax,vars.sigpos,8);
+%             [SNRdB,avgnoise,peakSourcePower,thresholdMeanPower] = imErrorAnalysis(myhandles.im{aa},vars.gridax,vars.sigpos,8);
 %             win_errs(ww,:) = [SNRdB,avgnoise,peakSourcePower];
         end
-%         SNRdB = mean(win_errs(:,1));
-%         avgnoise = mean(win_errs(:,2));
-%         peakSourcePower = mean(win_errs(:,3));
-
-            figure(myhandles.mainfig);
-            myhandles.implot = surf(vars.gridax{1},vars.gridax{2}, myhandles.im);
-            peakVal = max(max(myhandles.im)); % Used to test convergence
-            colormap(jet); colorbar; axis('xy');
-            axis([vars.froom(1,1)-.25, vars.froom(1,2)+.25, vars.froom(2,1)-.25, vars.froom(2,2)+.25]);
-            hold on;
-            %  Mark coherenet noise positions
-%            plot(sigposn(1,:),sigposn(2,:),'xb','MarkerSize', 18,'LineWidth', 2);  %  Coherent noise
-            %  Mark actual target positions  
-            myhandles.sourceplot = plot3(vars.sigpos(1,:),vars.sigpos(2,:),ones(vars.sigtot)*1.5,'ok', 'MarkerSize', 18,'LineWidth', 2);
-            %  Mark microphone positions
-            myhandles.micplot = plot3(mposplat(1,:),mposplat(2,:),mposplat(3,:),'sr','MarkerSize', 12);
-            axis('tight');
+        
+        
+        figure(myhandles.mainfig);
+        myhandles.implot = surf(vars.gridax{1},vars.gridax{2}, myhandles.im{aa});
+        peakVal = max(max(myhandles.im{aa})); % Used to test convergence
+        colormap(jet); colorbar; axis('xy');
+        axis([vars.froom(1,1)-.25, vars.froom(1,2)+.25, vars.froom(2,1)-.25, vars.froom(2,2)+.25]);
+        hold on;
+        %  Mark coherenet noise positions
+%       plot(sigposn(1,:),sigposn(2,:),'xb','MarkerSize', 18,'LineWidth', 2);  %  Coherent noise
+        %  Mark actual target positions  
+        myhandles.sourceplot = plot3(vars.sigpos(1,:),vars.sigpos(2,:),ones(vars.sigtot)*1.5,'ok', 'MarkerSize', 18,'LineWidth', 2);
+        %  Mark microphone positions
+        myhandles.micplot = plot3(vars.mposplat{aa}(1,:),vars.mposplat{aa}(2,:),vars.mposplat{aa}(3,:),'sr','MarkerSize', 12);
+        axis('tight');
             
-            if ~strcmp(vars.setup,'LINEAR')
+        if ~strcmp(vars.setup,'LINEAR')
             for iii = 1:localvars.value{2} % Label Platform numbers
-                mjs_loc = mjs_platform(iii).getCenter();
-                myhandles.platlabs{iii} = text(mjs_loc(1),mjs_loc(2)+0.5,mjs_loc(3), ['Pl', int2str(iii)], 'HorizontalAlignment', 'center');
+                vars.platcenters{aa}(iii,:) = mjs_platform(iii).getCenter();
+                myhandles.platlabs{aa}(iii) = text(vars.platcenters{aa}(iii,1),vars.platcenters{aa}(iii,2)+0.5,vars.platcenters{aa}(iii,3), ['Pl', int2str(iii)], 'HorizontalAlignment', 'center');
             end
-            end
-
-            for kn=1:length(mposplat(1,:)) % Label microphones
-                myhandles.miclabs{kn} = text(mposplat(1,kn),mposplat(2,kn),mposplat(3,kn), int2str(kn), 'HorizontalAlignment', 'center');
-            end
+        end
+        for kn=1:length(vars.mposplat{aa}(1,:)) % Label microphones
+            myhandles.miclabs{kn} = text(vars.mposplat{aa}(1,kn),vars.mposplat{aa}(2,kn),vars.mposplat{aa}(3,kn), int2str(kn), 'HorizontalAlignment', 'center');
+        end
 
             % Draw Room walls
-            plot([vars.vn(1,:), vars.vn(1,1)],[vars.vn(2,:), vars.vn(2,1)],'k--')
-            % Label Plot
-            view(cameraAngle);
-            xlabel('Xaxis Meters')
-            ylabel('Yaxis Meters')
-            title({['SRP image (Mics at squares,'],[' Target in circle, Noise sources at Xs']} )
-            hold off            
+        plot([vars.vn(1,:), vars.vn(1,1)],[vars.vn(2,:), vars.vn(2,1)],'k--')
+        % Label Plot
+        xlabel('Xaxis Meters')
+        ylabel('Yaxis Meters')
+        title({['SRP image (Mics at squares,'],[' Target in circle, Noise sources at Xs']} )
+        hold off    
 
-%%%% IMAGE ANALYSIS
-[SNRdB,avgnoise,peakSourcePower,thresholdMeanPower] = imErrorAnalysis(myhandles.im,vars.gridax,vars.sigpos,8);
-% win_errs(ww,:) = [SNRdB,avgnoise,peakSourcePower];
-            
-% disp([' SNRdB :', num2str(SNRdB),...
-%       '    Mean Noise :', num2str(avgnoise),...
-%       '    Peak Source Power :', num2str(peakSourcePower)]);
-table(SNRdB,avgnoise,peakSourcePower,thresholdMeanPower)
-SNRarray(aa) = SNRdB;
+        vars.currentImageIndex = aa;
         
-        waitbar(1,waitDialog,'Done');
-        close(waitDialog);
+        %%%% IMAGE ANALYSIS
+        [SNRdB,avgnoise,peakSourcePower,thresholdMeanPower] = imErrorAnalysis(myhandles.im{aa},vars.gridax,vars.sigpos,8);
+        table(SNRdB,avgnoise,peakSourcePower,thresholdMeanPower)
+        
+end % END of aa loop
+
+waitbar(1,waitDialog,'Done');
+close(waitDialog);
 % pause
-    end % END of aa loop
-    
-% end % END of bb loop
-% scatter(angles.*180/pi,SNRarray);
-% title('SNRdB vs. angle of platform');
-% xlabel('Angle degrees'); ylabel('SNRdB');
+
+removeSideMenu(1);
+% Add Boxes
+css.adj = 0;
+css.boxTop = css.sideMenuTop;
+if strcmp(vars.independent,'None')
+    objs.active = {css.sidemenu2{:}, css.sidemenu3{:}};
+else
+   objs.active = {css.sidemenu2{:}, css.sidemenu3{:},'scroll'}; 
+   objs.box{9}.label{1} = vars.independent;
+end
+simBoxes = getBoxIndexes(objs.boxTitles,objs.active);
+
+% Copy vars to output box
+for nn = 1:min(objs.box{simBoxes(1)}.N,length(vars.label))
+    if nn == vars.ii
+        objs.box{simBoxes(1)}.label{nn} = [vars.label{nn},' : ', num2str(vars.value{nn}(1)),...
+            ' to ', num2str(vars.value{nn}(end))];
+    else
+        objs.box{simBoxes(1)}.label{nn} = [vars.label{nn},' : ', vars.value{nn}];
+    end
+end
+
+for ss = 1:length(simBoxes)
+	[css, objs] = loadBox(css,objs,simBoxes(ss));
+end
+
+if ~strcmp(vars.independent,'None')
+    boxID = 9; % scroll box number
+	objs.box{boxID}.itemhandle{1}.Max = vars.value{vars.ii}(end);
+    objs.box{boxID}.itemhandle{1}.Value = vars.value{vars.ii}(1);
+	objs.box{boxID}.itemhandle{1}.Min = vars.value{vars.ii}(1);
+    objs.box{boxID}.itemhandle{1}.SliderStep = ...
+            [1,1]./(length(vars.value{vars.ii})-1);
+
+end
 
 myhandles.vars = vars;
 myhandles.css = css;

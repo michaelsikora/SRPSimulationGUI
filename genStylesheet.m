@@ -29,7 +29,8 @@ css.padding = 4;
 css.boxTop = css.sideMenuTop;
 
 css.sidemenu1 = {'indselect','varlist','guiopts'};
-css.sidemenu2 = {'output','srpsim','aftersrp','guiopts'};
+css.sidemenu2 = {'output','srpsim'};
+css.sidemenu3 = {'aftersrp','guiopts'};
 
 css.HorizontalAlignment = 'Left'; 
 css.FontWeight = 'bold';
