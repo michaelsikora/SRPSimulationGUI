@@ -6,6 +6,7 @@ function [SNRdB,avgnoise,peakSourcePower,thresholdMeanPower] = imErrorAnalysis(i
 % sigpos - the xyz coordinate matrix of source positions
 % box - size of the box used to delineate noise and source signal
 
+%%%% BOX METHOD
 % delta = (gridax{1}(2)-gridax{1}(1));
 % AA = gridax{1} > (sigpos(1)+delta);
 % BB = gridax{1} < (sigpos(1)-delta);
@@ -21,19 +22,22 @@ function [SNRdB,avgnoise,peakSourcePower,thresholdMeanPower] = imErrorAnalysis(i
 % regx = CCx-gridsize:CCx+gridsize;
 % regy = CCy-gridsize:CCy+gridsize;
 % % doesn't catch boundary problems if max peak is near edge.
+%%%%
 
-% THRESHOLD METHOD
-peakVal = max(max(im));
+%%%% THRESHOLD METHOD
+peakVal = max(im(:));
 thresh = 0.50*peakVal;
 [regx,regy] = find(im>thresh);
+%%%%
 
-% BOX METHOD
+%%%% BOX METHOD
 % imsourcewindow = zeros(gridsize*2+1);
 % for ll = 1:gridsize*2+1
 %     for kk = 1:gridsize*2+1
 %         imsourcewindow(kk,ll) = im(kk+regx(1)-1,ll+regy(1)-1);
 %     end
 % end
+%%%%
 
 % PLOT ABOVE THRESHOLD
 % pause;
@@ -81,4 +85,5 @@ avgnoise = mean(noisevalues);
 peakSourcePower = srpmax;
 thresholdMeanPower = srpmean;
 SNRdB = db(srpmean/avgnoise);
+% SNRdB = db(max(im(:))/std(im(:))); % quick estimate
 end

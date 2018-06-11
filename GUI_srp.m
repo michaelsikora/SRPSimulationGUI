@@ -21,7 +21,7 @@ objs.pnl = uipanel(mainWin,'FontSize',12,...
 objs.axes = axes('Parent',objs.pnl);
 
 %%%% Left Hand Side SIDE MENU
-%%%% Box for independent variable setup
+%%%% BOX for independent variable setup
 objs.indvarbox.N = 3; % number of objects in box
 objs.indvarbox.label = {'Starting Value','Ending Value','Samples'} ;% text for label
 objs.indvarbox.type  = {'popupmenu','popupmenu','popupmenu'};% types of the objects
@@ -56,7 +56,7 @@ objs.varbox.type  = {'popupmenu','popupmenu','popupmenu',...
 objs.varbox.string = {{'1','2','3','4','5'},...
                 {'1','2','3','4','5','6'},...
                 {'0.5m','1m','1.5m','2m','2.5m','3m','3.5m'},...
-                {'0deg','45deg','90deg'},...
+                {'0deg','45deg','90deg','Random'},...
                 {'5cm','10cm','17cm','20cm','25cm','30cm'},...
                 {'IMPULSE','MOZART','SINE','WHITE NOISE'},...
                 {'Center','Choose Location','Random XY'},...
@@ -90,14 +90,14 @@ objs.box{4}.string = {{'SRP image','Platform Orientations','SNR dB'},...
                 {}}; % string values for object
 objs.box{4}.callback = {'','',@loadFig};
 
-%%%% BOX 5
+%%%% BOX 5 gui options
 objs.box{5}.N = 4; % number of objects in box
 objs.box{5}.label = {'Restart GUI','Toggle Fullscreen','Export Variables','Import Variables'} ;% text for label
 objs.box{5}.type  = {'pushbutton','pushbutton','pushbutton','pushbutton'};% types of the objects
 objs.box{5}.string = {{},{},{},{}}; % string values for object
 objs.box{5}.callback = {@restartGUI,@Fullscreen,@saveVars,@loadVars};
 
-%%%% BOX 6
+%%%% BOX 6 variables loaded
 objs.box{6}.N = 2; % number of objects in box
 objs.box{6}.label = {'Edit Variables','Run SRP'} ;% text for label
 objs.box{6}.type  = {'pushbutton','pushbutton'};% types of the objects
@@ -114,6 +114,7 @@ objs.box{8}.type  = {'pushbutton','pushbutton'};% types of the objects
 objs.box{8}.string = {{},{}}; % string values for object
 objs.box{8}.callback = {@errorAnalysis,@saveFig};
 
+%%%% BOX 9 scroll through images
 objs.box{9}.N = 2;
 objs.box{9}.label = {'Scroll','---'};
 objs.box{9}.type = {'slider','text'};
@@ -132,6 +133,7 @@ currSideMenuIDs = getBoxIndexes(objs.boxTitles,objs.active);
 for ss = 1:length(currSideMenuIDs)
 	[css, objs] = loadBox(css,objs,currSideMenuIDs(ss));
 end
+objs.box{2}.itemhandle{5}.Value = 3; % sets dist b/t mics to 17cm by default.
 
 declare % generates predefined variables
 css = genStylesheet(vars.computer);
@@ -145,71 +147,25 @@ myhandles.vars = vars; % Variables for the simulation
 guidata(mainWin,myhandles);
 end
 
-% Return to editing vars menu
-function editvars(hObject,eventdata)
-myhandles = guidata(gcf);
-objs = myhandles.objs;
-css = myhandles.css;
-vars = myhandles.vars;
 
-removeSideMenu(1);
- 
-% Draw Starting side menu
-css.adj = 0;
-css.boxTop = css.sideMenuTop;
-objs.active = css.sidemenu1;
-currSideMenuIDs = getBoxIndexes(objs.boxTitles,objs.active);
-for ss = 1:length(currSideMenuIDs)
-	[css, objs] = loadBox(css,objs,currSideMenuIDs(ss));
-end
-
-% find boxes by titles and store locally
-indselect = objs.box{strcmp(objs.boxTitles,'indselect')};
-indsetup = objs.box{strcmp(objs.boxTitles,'indvar')};
-varlist = objs.box{strcmp(objs.boxTitles,'varlist')};
-% Reset Independent variable selection
-val = find(strcmp(indselect.itemhandle{1}.String,vars.independent));
-indselect.itemhandle{1}.Value = val;
-if strcmp(vars.independent,'None')
-    % var box list
-    popupmenulist = find(strcmp(varlist.type,'popupmenu'));
-    for ii = popupmenulist
-        nn = find(strcmp(vars.label,varlist.label(ii)));
-        units = objs.varbox.units{nn};
-        val = find(strcmp(objs.varbox.string{nn},[vars.value{nn},units]));
-        varlist.itemhandle{ii}.Value = val;
-    end
-else
-    % var box list
-    popupmenulist = find(strcmp(varlist.type,'popupmenu'));
-    for ii = popupmenulist
-        nn = find(strcmp(vars.label,varlist.label(ii)));
-        units = objs.varbox.units{nn};
-        val = find(strcmp(objs.varbox.string{nn},[vars.value{nn}]));
-        varlist.itemhandle{ii}.Value = val;
-    end
-end
-
-myhandles.css = css;
-myhandles.objs = objs;
-guidata(gcf,myhandles);
-end
 
 function saveFig(hObject,eventdata)
 myhandles = guidata(gcbo);
-objs = myhandles.objs;
 
 [file,path,indx] = uiputfile({'*.fig';...
-    'image *.png'});
+    '*.png'});
+
+map = colormap;
+frame = getframe(gcf);
+now = frame2im(frame);
+imwrite(now,map,[path, file]);
 
 % saveas(h,sprintf('images/roomsim1_%d_%d.png',bb,aa));
-saveas(objs.axes ,[path, file]);
+% saveas(objs.axes ,[path, file]);
 
-myhandles.objs = objs;
 guidata(gcf,myhandles);
 end
 
-% Run the SRP image using the stored variables
 function dispvars(hObject,eventdata)
 myhandles = guidata(gcbo);
 objs = myhandles.objs;
@@ -229,7 +185,6 @@ end
 function setLocS(hObject,eventdata)
 myhandles = guidata(gcbo);
 objs = myhandles.objs;
-css = myhandles.css;
 vars = myhandles.vars;
 
 sigtot = 1;
@@ -246,11 +201,12 @@ elseif eventdata.Source.Value == 3
 end
 
 myhandles.vars = vars;
-myhandles.css = css;
 myhandles.objs = objs;
 guidata(gcf,myhandles);
 end
 
+% Save gui data to .mat file
+% intended to be used after srp has been run
 function saveVars(hObject,eventdata)
 myhandles = guidata(gcbo);
 objs = myhandles.objs;
@@ -288,6 +244,7 @@ guidata(gcf,myhandles);
 editvars(hObject,eventdata);
 end
 
+% Load gui data from .mat file
 function loadVars(hObject,eventdata)
 myhandles = guidata(gcbo);
 objs = myhandles.objs;
@@ -315,16 +272,6 @@ myhandles.objs = objs;
 guidata(gcf,myhandles);
 
 % editvars(hObject,eventdata);
-end
-
-% Finds the indexes of all elements in one cell array in another, assumes
-% strings
-function indexes = getBoxIndexes(cellBoxNames,cellSelectBoxes)
-indexes = [];
-for ii = 1:length(cellSelectBoxes)
-   val = find(strcmp(cellBoxNames,cellSelectBoxes{ii})); 
-   indexes = [indexes, val];
-end
 end
 
 function restartGUI(ObjH, EventData)
@@ -415,7 +362,7 @@ insertPos = find(strcmp(css.sidemenu1,'indselect')) + 1;
 removeSideMenu(insertPos); % remove all side boxes
 N = length(css.sidemenu1); % Get number of sideboxes
 
-if eventdata.Source.Value ~= 1 % Selection is not the none option
+if eventdata.Source.Value ~= 1 % Selection is not the NONE option
     %%%% Insert box at insertPos
     if isempty(find(strcmp(css.sidemenu1,'indvar'), 1)) 
         % if indvar box doesn't already exist
@@ -431,7 +378,7 @@ if eventdata.Source.Value ~= 1 % Selection is not the none option
     objs.box{varboxPos} = objs.varbox;
 
     which = eventdata.Source.Value-1;
-    % Remove indpendent variable from variable list box
+    % Remove independent variable from variable list box
     objs.box{varboxPos}.N = objs.box{varboxPos}.N - 1;
     objs.box{varboxPos}.label(which) = [];
     objs.box{varboxPos}.type(which) = [];
@@ -461,7 +408,11 @@ if eventdata.Source.Value ~= 1 % Selection is not the none option
     for ii = popupmenulist
         nn = find(strcmp(vars.label,objs.box{varboxPos}.label(ii)));
         units = objs.varbox.units{nn};
-        val = find(strcmp(objs.varbox.string{nn},[vars.value{nn},units]));
+        stringvalue = [vars.value{nn}, units];
+        if ~iscell(vars.value{nn}) && ~ischar(vars.value{nn})
+            stringvalue = [num2str(vars.value{nn}(1)), units];
+        end
+        val = find(strcmp(objs.varbox.string{nn},stringvalue));
         objs.box{varboxPos}.itemhandle{ii}.Value = val;
     end
     
@@ -497,7 +448,7 @@ myhandles.objs = objs;
 guidata(gcf,myhandles);
 end
 
-% Function to load the fig file and plot
+% Function to load a fig file and plot
 function loadfig(hObject,eventdata)
 myhandles = guidata(gcbo);
 
@@ -517,52 +468,6 @@ myhandles.objs.axes.Title = ax.Title;
 myhandles.objs.axes.Title.FontSize = 10;
 myhandles.objs.axes.XAxis.Label = ax.XAxis.Label;
 myhandles.objs.axes.YAxis.Label = ax.YAxis.Label;
-end
-
-function key_pressed_fcn(hObject, eventdata, handles)
-myhandles = guidata(gcbo);
-% hObject    handle to figure1 (see GCBO)
-% eventdata  structure with the following fields (see FIGURE)
-%   Key: name of the key that was pressed, in lower case
-%   Character: character interpretation of the key(s) that was pressed
-%   Modifier: name(s) of the modifier key(s) (i.e., control, shift) pressed
-% handles    structure with handles and user data (see GUIDATA)
-
-% add this part as an experiment and see what happens!
-% eventdata % Let's see the KeyPress event data
-% disp(eventdata.Key) % Let's display the key, for fun!
-if exist('myhandles')    
-  if eventdata.Key == 'o'
-    if ~isempty(myhandles.sourceplot)
-        if strcmp(myhandles.sourceplot(1).Visible,'on')
-            set(myhandles.sourceplot,'Visible','off')
-        else
-            set(myhandles.sourceplot,'Visible','on')
-        end
-    end
-  elseif eventdata.Key == 'i'
-    if ~isempty(myhandles.implot)
-        if strcmp(myhandles.implot(1).Visible,'on')
-            set(myhandles.implot,'Visible','off')
-        else
-            set(myhandles.implot,'Visible','on')
-        end
-    end
-  elseif eventdata.Key == 'm'
-    if ~isempty(myhandles.micplot)
-        if strcmp(myhandles.micplot(1).Visible,'on')
-            set(myhandles.micplot,'Visible','off')
-            set(myhandles.platlabs{1:end},'Visible','off')
-            set(myhandles.miclabs{1:end},'Visible','off')
-        else
-            set(myhandles.micplot,'Visible','on')
-            set(myhandles.platlabs{1:end},'Visible','on')
-            set(myhandles.miclabs{1:end},'Visible','on')
-        end
-    end
-  end
-end
- 
 end
 
 function storVars(hObject,eventdata)
@@ -618,26 +523,41 @@ vars = myhandles.vars;
 
 platnumloc = find(strcmp(objs.box{2}.label,'Number of Platforms'));
 instr = objs.box{2}.itemhandle{platnumloc}.String{objs.box{2}.itemhandle{platnumloc}.Value};
-platnum = str2num(instr);
-if objs.box{2}.itemhandle{8}.Value == 1
+platnum = str2num(instr); % number of platforms chosen
+
+platLocOpt = 8; % index of popup box for platform locations option
+platAngleOpt = 4;
+locindvar = find(strcmp(objs.active,'indvar'), 1);
+if ~isempty(locindvar) % indvar box exists in active list
+    platLocOpt = platLocOpt-1;
+    platAngleOpt = platAngleOpt-1;
+end
+
+if objs.box{2}.itemhandle{platLocOpt}.Value == 1
         % Define group of microphone platforms
         vars.platformGroup = Platform(vars.sigpos',platnum,0.5);
         [mjs_X, mjs_Y, mjs_Z] = vars.platformGroup.getMics();
         vars.pcs = [mjs_X, mjs_Y, mjs_Z]; % Center points of arrays
         vars.setup = 'EQUIDISTANT';
-elseif  objs.box{2}.itemhandle{8}.Value == 2
+elseif  objs.box{2}.itemhandle{platLocOpt}.Value == 2
     [X,Y] = getLocs(vars.froom,platnum,'Platform Center(s) in FROOM');
     vars.pcs = [X,Y,ones(platnum,1).*1.5];
     vars.setup = 'CHOSEN';
-elseif  objs.box{2}.itemhandle{8}.Value == 3
+elseif  objs.box{2}.itemhandle{platLocOpt}.Value == 3
     vars.setup = 'CHOSEN';
-elseif  objs.box{2}.itemhandle{8}.Value == 4
+elseif  objs.box{2}.itemhandle{platLocOpt}.Value == 4
     X = rand(platnum,1)*abs(vars.froom(1,2)-vars.froom(1,1))+vars.froom(1,1);
     Y = rand(platnum,1)*abs(vars.froom(2,2)-vars.froom(2,1))+vars.froom(2,1);
     vars.pcs = [X,Y,ones(platnum,1).*1.5];
     vars.setup = 'RANDOM';
-elseif  objs.box{2}.itemhandle{8}.Value == 5
+elseif  objs.box{2}.itemhandle{platLocOpt}.Value == 5
     vars.setup = 'LINEAR';
+end
+
+if objs.box{2}.itemhandle{platAngleOpt}.Value == 4
+   vars.angleSetup = 'RANDOM';
+else
+   vars.angleSetup = 'SET'; 
 end
 
 removeSideMenu(1);
@@ -668,7 +588,57 @@ myhandles.objs = objs;
 guidata(gcf,myhandles);
 end
 
-% Fullscreen GUI
+% Return to editing vars menu
+function editvars(hObject,eventdata)
+myhandles = guidata(gcf);
+objs = myhandles.objs;
+css = myhandles.css;
+vars = myhandles.vars;
+
+removeSideMenu(1);
+ 
+% Draw Starting side menu
+css.adj = 0;
+css.boxTop = css.sideMenuTop;
+objs.active = css.sidemenu1;
+currSideMenuIDs = getBoxIndexes(objs.boxTitles,objs.active);
+for ss = 1:length(currSideMenuIDs)
+	[css, objs] = loadBox(css,objs,currSideMenuIDs(ss));
+end
+
+% find boxes by titles and store locally
+indselect = objs.box{strcmp(objs.boxTitles,'indselect')};
+indsetup = objs.box{strcmp(objs.boxTitles,'indvar')};
+varlist = objs.box{strcmp(objs.boxTitles,'varlist')};
+% Reset Independent variable selection
+val = find(strcmp(indselect.itemhandle{1}.String,vars.independent));
+indselect.itemhandle{1}.Value = val;
+if strcmp(vars.independent,'None')
+    % var box list
+    popupmenulist = find(strcmp(varlist.type,'popupmenu'));
+    for ii = popupmenulist
+        nn = find(strcmp(vars.label,varlist.label(ii)));
+        units = objs.varbox.units{nn};
+        val = find(strcmp(objs.varbox.string{nn},[vars.value{nn},units]));
+        varlist.itemhandle{ii}.Value = val;
+    end
+else
+    % var box list
+    popupmenulist = find(strcmp(varlist.type,'popupmenu'));
+    for ii = popupmenulist
+        nn = find(strcmp(vars.label,varlist.label(ii)));
+        units = objs.varbox.units{nn};
+        val = find(strcmp(objs.varbox.string{nn},[vars.value{nn} units]));
+        varlist.itemhandle{ii}.Value = val;
+    end
+end
+
+myhandles.css = css;
+myhandles.objs = objs;
+guidata(gcf,myhandles);
+end
+
+% Toggle the Fullscreen mode
 function Fullscreen(hObject,eventdata)
 myhandles = guidata(gcbo);
 
@@ -680,7 +650,52 @@ myhandles = guidata(gcbo);
         set(gcf, 'units','normalized','outerposition',[0 0 0.8 1]);
     end
 end
+% Keyboard shortcuts for toggling plotted features
+function key_pressed_fcn(hObject, eventdata, handles)
+myhandles = guidata(gcbo);
+% hObject    handle to figure1 (see GCBO)
+% eventdata  structure with the following fields (see FIGURE)
+%   Key: name of the key that was pressed, in lower case
+%   Character: character interpretation of the key(s) that was pressed
+%   Modifier: name(s) of the modifier key(s) (i.e., control, shift) pressed
+% handles    structure with handles and user data (see GUIDATA)
 
+% add this part as an experiment and see what happens!
+% eventdata % Let's see the KeyPress event data
+% disp(eventdata.Key) % Let's display the key, for fun!
+if exist('myhandles')    
+  if eventdata.Key == 'o'
+    if ~isempty(myhandles.sourceplot)
+        if strcmp(myhandles.sourceplot(1).Visible,'on')
+            set(myhandles.sourceplot,'Visible','off')
+        else
+            set(myhandles.sourceplot,'Visible','on')
+        end
+    end
+  elseif eventdata.Key == 'i'
+    if ~isempty(myhandles.implot)
+        if strcmp(myhandles.implot(1).Visible,'on')
+            set(myhandles.implot,'Visible','off')
+        else
+            set(myhandles.implot,'Visible','on')
+        end
+    end
+  elseif eventdata.Key == 'm'
+    if ~isempty(myhandles.micplot)
+        if strcmp(myhandles.micplot(1).Visible,'on')
+            set(myhandles.micplot,'Visible','off')
+            set(myhandles.platlabs{1:end},'Visible','off')
+            set(myhandles.miclabs{1:end},'Visible','off')
+        else
+            set(myhandles.micplot,'Visible','on')
+            set(myhandles.platlabs{1:end},'Visible','on')
+            set(myhandles.miclabs{1:end},'Visible','on')
+        end
+    end
+  end
+end
+ 
+end
 % Loads a box in the sidemenu from objs.side.box
 function [css, objs] = loadBox(css,objs,boxID)
 css.boxTop = css.boxTop-2*css.padding-css.adj-css.itemOffset; % vertically offset from previous box 
@@ -758,7 +773,6 @@ currBox.rect = annotation(gcf,'rectangle',...
 currBox.rect.Units = 'Pixels';
 objs.box{boxID} = currBox;
 end
-
 % Removes overlapping Stop values given a Start value
 function noOverlapCheckStart(hObject,eventdata)
 myhandles = guidata(gcbo);
@@ -776,7 +790,6 @@ myhandles.css = css;
 myhandles.objs = objs;
 guidata(gcf,myhandles);
 end
-
 % Removes overlapping Start values given a Stop value
 function noOverlapCheckStop(hObject,eventdata)
 myhandles = guidata(gcbo);
@@ -793,53 +806,14 @@ myhandles.css = css;
 myhandles.objs = objs;
 guidata(gcf,myhandles);
 end
-
-function errorAnalysis(hObject,eventdata)
-myhandles = guidata(gcf);
-vars = myhandles.vars;
-
-%%%% IMAGE ANALYSIS
-[SNRdB,avgnoise,peakSourcePower,thresholdMeanPower] = imErrorAnalysis(myhandles.im{vars.currentImageIndex},vars.gridax,vars.sigpos,8);
-% win_errs(ww,:) = [SNRdB,avgnoise,peakSourcePower];
-            
-% disp([' SNRdB :', num2str(SNRdB),...
-%       '    Mean Noise :', num2str(avgnoise),...
-%       '    Peak Source Power :', num2str(peakSourcePower)]);
-table(SNRdB,avgnoise,peakSourcePower,thresholdMeanPower)
-
-myhandles.vars = vars;
-guidata(gcf,myhandles);
+% similar to setdiff but for two cells of strings. returns the indexes in 
+% the first cell of the matching elements.
+function indexes = getBoxIndexes(cellBoxNames,cellSelectBoxes)
+indexes = [];
+for ii = 1:length(cellSelectBoxes)
+   val = find(strcmp(cellBoxNames,cellSelectBoxes{ii})); 
+   indexes = [indexes, val];
 end
-
-% EXTRA EXAMPLE
-% Permutates the Order of the side menu boxes
-function randomSideMenu(hObject,eventdata)
-myhandles = guidata(gcbo);
-css = myhandles.css;
-objs = myhandles.objs;
-eventdata.Source.Tag; % Which sideMenu popupbox
-eventdata.Source.String{eventdata.Source.Value}; % option selected
-
-% delete all side menu boxes
-for rr = 1:length(objs.box)
-    delete(objs.box{rr}.rect);
-    for dd = 1:objs.box{rr}.N
-        delete(objs.box{rr}.itemhandle{dd});
-    end
-    for ll = 1:length(objs.box{rr}.labels)
-        delete(objs.box{rr}.labels{ll});
-    end
-end
-
-css.adj = 0;
-css.boxTop = css.sideMenuTop;
-for ss = randperm(length(objs.box))
-    [css, objs] = loadBox(css,objs,ss);
-end
-
-myhandles.css = css;
-myhandles.objs = objs;
-guidata(gcf,myhandles);
 end
 
 %% Function to setup a SRP simulation from GUI
@@ -849,6 +823,7 @@ objs = myhandles.objs;
 css = myhandles.css;
 vars = myhandles.vars;
 
+%%%% Get variable values for simulation
 coeff = [1 1 1 (pi/180) 1]; % values to scale input variables
 for vv = 1:5 % load numerical variables from user data
     if ischar(vars.value{vv})
@@ -865,22 +840,29 @@ end
 localvars.indvalues = localvars.value{vars.ii};
 localvars.value{vars.ii} = localvars.indvalues(1);
 
-% Upgrade defaults with user inputs
+% String inputs and static variables
 source = vars.value{6};
 sourcesetup = vars.value{7};
 platsetup = vars.value{8};
 cameraAngle = 2;
-N = 1; % number of angles
-aperature = 2; % meters
-center = 0;
+N = 1;
+if strcmp(vars.angleSetup,'RANDOM')
+    N = 8; % number of angles        
+end
+aperature = localvars.value{3}; % meters
+center = 0; % linear array center x-coordinate
 myhandles.im{1} = 0;
 
-
 waitDialog = waitbar(0,'Running Simulation');
-% independent variable loop
+%%%% independent variable loop
 for aa = 1:length(localvars.indvalues)
 localvars.value{vars.ii} = localvars.indvalues(aa);
 
+    for bb = 1:N
+        angle = localvars.value{4};
+        if strcmp(vars.angleSetup,'RANDOM')
+            angle = rand(1)*pi/2;
+        end
     micnum = localvars.value{2}*localvars.value{1};  %  Number of mics in array to be tested
     mjs_radius = localvars.value{5}/(200*sin(pi/localvars.value{1}));
 
@@ -895,17 +877,17 @@ localvars.value{vars.ii} = localvars.indvalues(aa);
         vars.pcs = [...
             linspace(center-aperature/2,center+aperature/2,localvars.value{2})'...
             I*3 I*1.5];
-    end
-
-%     for bb = 1:N % iterate through angles
-%     angles = (pi/2)*rand(1,N); % random angle
-    
-    if strcmp(vars.setup,'LINEAR')
         vars.mposplat{aa} = vars.pcs';
-    else
-        
+    elseif localvars.value{2} == 2
+        distBetween = sqrt(sum((vars.pcs(2,:)-vars.pcs(1,:)).^2));
+        scale = distBetween/localvars.value{3};
+        vars.pcs(2,:) = vars.pcs(1,:) + (vars.pcs(2,:)-vars.pcs(1,:))/scale;
+    end
+    
+    
+    if ~strcmp(vars.setup,'LINEAR')
     % Precompute half angles for quaternion rotation
-    mjs_cos2 = cos(localvars.value{4}/2); mjs_sin2 = sin(localvars.value{4}/2);
+    mjs_cos2 = cos(angle/2); mjs_sin2 = sin(angle/2);
     % Define Platforms
         for pp = 1:localvars.value{2} % loop for identical platforms
             mjs_platform(pp) = Platform(vars.pcs(pp,:),localvars.value{1},localvars.value{5}/100);
@@ -918,9 +900,9 @@ localvars.value{vars.ii} = localvars.indvalues(aa);
             mjs_platform(pp).eulOrient(mjs_pltheta(pp),0); 
         end
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        fprintf('Angle is %02.f degrees : ', localvars.value{4}/pi*180);
+        fprintf('Angle is %02.f degrees : ', angle/pi*180);
         for pp = 1:localvars.value{2}
-        	mjs_platform(pp).eulOrient(mjs_pltheta(pp),localvars.value{4}); 
+        	mjs_platform(pp).eulOrient(mjs_pltheta(pp),angle); 
         end
 
 % Add microphone coordinates to mic position matrix
@@ -1046,7 +1028,6 @@ waitbar(0.25,waitDialog,'Simulating Source');
 %             win_errs(ww,:) = [SNRdB,avgnoise,peakSourcePower];
         end
         
-        
         figure(myhandles.mainfig);
         myhandles.implot = surf(vars.gridax{1},vars.gridax{2}, myhandles.im{aa});
         peakVal = max(max(myhandles.im{aa})); % Used to test convergence
@@ -1080,10 +1061,15 @@ waitbar(0.25,waitDialog,'Simulating Source');
         hold off    
 
         vars.currentImageIndex = aa;
-        
+            if bb == 1
+               myhandles.im{aa} = zeros(size(im)); 
+            end
+            myhandles.im{aa} = (myhandles.im{aa}.*(bb-1)+im)./bb;
+                    
         %%%% IMAGE ANALYSIS
         [SNRdB,avgnoise,peakSourcePower,thresholdMeanPower] = imErrorAnalysis(myhandles.im{aa},vars.gridax,vars.sigpos,8);
         table(SNRdB,avgnoise,peakSourcePower,thresholdMeanPower)
+    end
         
 end % END of aa loop
 
@@ -1130,5 +1116,23 @@ end
 myhandles.vars = vars;
 myhandles.css = css;
 myhandles.objs = objs;
+guidata(gcf,myhandles);
+end
+
+% Run the error analysis on current plot and display table of values
+function errorAnalysis(hObject,eventdata)
+myhandles = guidata(gcf);
+vars = myhandles.vars;
+
+%%%% IMAGE ANALYSIS
+[SNRdB,avgnoise,peakSourcePower,thresholdMeanPower] = imErrorAnalysis(myhandles.im{vars.currentImageIndex},vars.gridax,vars.sigpos,8);
+% win_errs(ww,:) = [SNRdB,avgnoise,peakSourcePower];
+            
+% disp([' SNRdB :', num2str(SNRdB),...
+%       '    Mean Noise :', num2str(avgnoise),...
+%       '    Peak Source Power :', num2str(peakSourcePower)]);
+table(SNRdB,avgnoise,peakSourcePower,thresholdMeanPower)
+
+myhandles.vars = vars;
 guidata(gcf,myhandles);
 end
