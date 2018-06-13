@@ -85,7 +85,8 @@ vars.bs = [.5 .5 .5 .5 .5 .5];
 vars.fov = [-2.5 -2.5 1.5; 2.5 2.5 1.5]';
 
 %  Time window for frequency domain block processing
-vars.trez = 20e-3;  %  In seconds
+% vars.trez = 20e-3;  %  In seconds
+vars.trez = 0.5;
 %  Room Resolution: Step through cartesion grid for mic and sound source
 %  plane
 vars.rez = .04;  %  In meters
