@@ -732,6 +732,12 @@ objs = myhandles.objs;
 css = myhandles.css;
 vars = myhandles.vars;
 
+load('robotaudition.mat');
+vars.pcs = h.vars.pcs;
+vars.value = h.vars.value;
+vars.mposplat = h.vars.mposplat;
+clear('h');
+
 %%%% Get variable values for simulation
 coeff = [1 1 1 (pi/180) 1]; % values to scale input variables
 for vv = 1:5 % load numerical variables from user data
@@ -763,7 +769,7 @@ platsetup = vars.value{8};
 cameraAngle = 2;
 N = 1;
 if strcmp(vars.angleSetup,'RANDOM')
-    N = 8; % number of angles        
+    N = 16; % number of angles        
 end
 aperature = localvars.value{3}; % meters
 center = 0; % linear array center x-coordinate
@@ -774,10 +780,16 @@ waitDialog = waitbar(0,'Running Simulation');
 for aa = 1:length(localvars.indvalues)
 localvars.value{vars.ii} = localvars.indvalues(aa);
 
+    snrdbarray = zeros(1,N);
+%     angleArray = zeros(1,N);
+%     angleArray = ones(1,N).*pi/2;
+%     angleArray = [68 54 38 69 53 12 38 83].*pi/180;
+    angleArray = rand(1,N).*pi/2
     for bb = 1:N
         angle = localvars.value{4};
         if strcmp(vars.angleSetup,'RANDOM')
-            angle = rand(1)*pi/2;
+%             angle = rand(1)*pi/2;
+            angle = angleArray(bb);
         end
     micnum = localvars.value{2}*localvars.value{1};  %  Number of mics in array to be tested
     mjs_radius = localvars.value{5}/(200*sin(pi/localvars.value{1}));
@@ -859,19 +871,19 @@ waitbar(0.25,waitDialog,'Simulating Source');
     
             case 'MOZART'
                 [target,fso] = audioread('./wav/mozart-1.wav');
-                target = target(1:fso);
+                target = target(1:max(length(target),fso*5));
                 target = resample(target,vars.fs,fso);  % Resample to fs
 %                 target = filtfilt(target,a,y); % high pass filter the signal
                 target = target*ones(1,vars.sigtot);
 
             case 'SINE'
-                freq1 = 1000; time = (1:vars.fs)./vars.fs;
+                freq1 = 440; time = (1:vars.fs)./vars.fs;
                 target = sin(2*pi*freq1*time);
                 target = target'*ones(1,vars.sigtot);
     
             case 'WHITE NOISE'
-                [b,a] = butter(5,[200 vars.fs-200]./vars.fs);
-                target = randn(vars.fs,1);
+                [b,a] = butter(5,[200 (vars.fs)-200]./vars.fs);
+                target = randn(vars.fs*5,1);
                 target = 10^(-3/20)*(target./max(target));
                 target = filtfilt(b,a,target);
         end
@@ -912,8 +924,13 @@ waitbar(0.25,waitDialog,'Simulating Source');
         for ww = 1:N_win
             % Random window in 1 second
 %             rpper = vars.winlen+round((length(target)-2*vars.winlen)*rand(1));
+<<<<<<< HEAD
 %             rpper = vars.winlen+round((length(target)-2*vars.winlen)*0.4);
             rpper = vars.winlen*(ww-1)+round((length(target)-2*vars.winlen)*0.1);
+=======
+            % iterative time windows
+            rpper = vars.winlen+round((length(target)-2*vars.winlen)*0.1)+2000*(bb-1);
+>>>>>>> a3052ba011c0127783686b0c5496349a6eb858e2
             % Normalize noise power
             nosoutper = nosoutper/sqrt(mean(mean(nosoutper.^2)));
             % Add coherent noise to target signals
@@ -982,14 +999,33 @@ waitbar(0.25,waitDialog,'Simulating Source');
         ylabel('Yaxis Meters')
         title({['SRP image (Mics at squares,'],[' Target in circle, Noise sources at Xs']} )
         hold off    
+<<<<<<< HEAD
+=======
+
+        vars.currentImageIndex = aa;
+%             if bb == 1
+%                myhandles.im{aa} = zeros(size(im)); 
+%             end
+%             myhandles.im{aa} = (myhandles.im{aa}.*(bb-1)+im)./bb;
+        myhandles.im{bb} = im;
+>>>>>>> a3052ba011c0127783686b0c5496349a6eb858e2
                     
         %%%% IMAGE ANALYSIS
-        [SNRdB,avgnoise,peakSourcePower,thresholdMeanPower] = imErrorAnalysis(myhandles.im{aa},vars.gridax,vars.sigpos,8);
+        [SNRdB,avgnoise,peakSourcePower,thresholdMeanPower] = imErrorAnalysis(myhandles.im{bb},vars.gridax,vars.sigpos,8);
         table(SNRdB,avgnoise,peakSourcePower,thresholdMeanPower)
+        snrdbarray(bb) = SNRdB;
     end
+<<<<<<< HEAD
     
+=======
+         
+>>>>>>> a3052ba011c0127783686b0c5496349a6eb858e2
 end % END of aa loop
 
+
+
+% snrdbarray
+% save('snrdbaRand.mat','snrdbarray','snrdbavg');
 waitbar(1,waitDialog,'Done');
 close(waitDialog);
 % pause

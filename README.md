@@ -36,4 +36,13 @@ vars.setup - string keyword to distinguish platform arrangement
     -RANDOM
 
 
+2018.06.13
+
+GUI development could not keep up with feature creep.
+
+Function that run SRP was copied to robotAudition.m file.
+variables are set at start of script instead of in GUI.
+images are stored in a cell im and saved to testdata.mat file
+
+plotIM.m loads in the data and plots the results.
     
